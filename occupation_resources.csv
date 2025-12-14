@@ -1,0 +1,64 @@
+Occupation, Category,Resources
+Farmer / crop tender,Food,grain
+Cattle herder,Food,cattle
+Sheep and goat herder,Food,"cattle,sheep"
+Pig keeper,Food,pig
+Dairy producer (milk/cheese maker),Food,cattle
+Grain grinder / quern operator,Food,grain
+Brewer (ale maker),Food,grain
+Salt worker (evaporating seawater),Food,tin
+Fisher,Food,fish
+Shellfish collector,Foraging,
+Deer hunter,Hunting,
+Wild fowler (birds and eggs),Foraging,
+Trapper/snare setter,Hunting,
+"Forager (berries, nuts, plants)",Foraging,
+Medicinal herb gatherer,Gathering,
+Flint knapper (for tools not replaced by bronze yet),Craft,tin
+"Bronze smith (axes, daggers, ornaments)",Metalwork,"copper,fire,tin"
+Metallurgical smelter/charcoal furnace operator,Metalwork,"charcoal,copper,fire,wood"
+Charcoal burner,Metalwork,"charcoal,fire,wood"
+"Gold worker (ornaments, beads)",Metalwork,
+Stone polisher / grinder,Stonework,
+Pottery maker,Crafts,clay
+Pot kiln tender,Crafts,"clay,fire"
+Basket weaver,Crafts,plant_fiber
+Leatherworker,Crafts,
+Tanner,Crafts,
+Textile weaver,Crafts,plant_fiber
+"Spinner (wool, flax)",Crafts,"plant_fiber,sheep"
+Dye-maker,Crafts,
+"Rope maker (hemp, flax, sea grasses)",Crafts,plant_fiber
+Carpenter,Woodworking,wood
+Bowyer (bow maker),Woodworking,wood
+Fletcher (arrow maker),Woodworking,
+Woodcarver,Woodworking,wood
+"Boat builder (skin, plank, or dugout boats)",Construction,fish
+Oar/paddle maker,Construction,
+House builder / wattle-and-daub specialist,Construction,
+Thatch roofer,Construction,
+Sailor / paddler / navigator,Maritime,fish
+Net maker,Maritime,fish
+Fish-smoker / preserver,,
+Boat repairer,Construction,fish
+Coastal trader / barge operator,Maritime,
+Landing-place coordinator,Maritime,
+Chieftain / village leader,Community,nationalism
+Speaker / diplomat between settlements,Community,
+Ritual specialist / priest-seer,Ritual,religion
+Burial mound constructor,Construction,
+Storyteller / oral historian,Social,
+"Musician (lyre, pipes, drums)",Social,
+Carver of ritual/ceremonial objects,Ritual,religion
+Peacekeeper / watchman,Social,
+Warrior / defender,Community,nationalism
+Bone tool maker,Tools,
+Antler tool maker,Tools,
+Millstone maker,Construction,grain
+Fire-keeper / hearth manager,Daily Life,fire
+Cook / communal feast preparer,Daily Life,
+Water carrier,Daily Life,
+Clothing maker / garment assembler,Crafts,
+Infant,Misc,
+Children,Misc,
+Elderly,Misc,
