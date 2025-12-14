@@ -1,14 +1,14 @@
 Occupation, Category,Resources
 Farmer / crop tender,Food,grain
 Cattle herder,Food,cattle
-Sheep and goat herder,Food,"cattle,sheep"
+Sheep and goat herder,Food,sheep
 Pig keeper,Food,pig
 Dairy producer (milk/cheese maker),Food,cattle
 Grain grinder / quern operator,Food,grain
 Brewer (ale maker),Food,grain
-Salt worker (evaporating seawater),Food,tin
+Salt worker (evaporating seawater),Food,
 Fisher,Food,fish
-Shellfish collector,Foraging,
+Shellfish collector,Foraging,fish
 Deer hunter,Hunting,
 Wild fowler (birds and eggs),Foraging,
 Trapper/snare setter,Hunting,
@@ -38,8 +38,8 @@ Oar/paddle maker,Construction,
 House builder / wattle-and-daub specialist,Construction,
 Thatch roofer,Construction,
 Sailor / paddler / navigator,Maritime,fish
-Net maker,Maritime,fish
-Fish-smoker / preserver,,
+Net maker,Maritime,plant_fiber
+Fish-smoker / preserver,Food,
 Boat repairer,Construction,fish
 Coastal trader / barge operator,Maritime,
 Landing-place coordinator,Maritime,
@@ -56,9 +56,9 @@ Bone tool maker,Tools,
 Antler tool maker,Tools,
 Millstone maker,Construction,grain
 Fire-keeper / hearth manager,Daily Life,fire
-Cook / communal feast preparer,Daily Life,
+Cook / communal feast preparer,Daily Life,fire
 Water carrier,Daily Life,
-Clothing maker / garment assembler,Crafts,
+Clothing maker / garment assembler,Crafts,plant_fiber
 Infant,Misc,
 Children,Misc,
 Elderly,Misc,
