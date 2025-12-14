@@ -1,96 +1,48 @@
 # BRONZESIM (scriptable occupations)
 
-A stand-alone C simulation of an Early Bronze Age–style island world:
+BRONZESIM is a stand-alone **ISO C99** simulation of an Early Bronze Age–style island world driven by a small **Domain‑Specific Language (DSL)** (`.bronze` files).
+
+The goal is to keep the simulation **data-driven** (occupations, tasks, and rules defined in DSL) while the C engine remains focused on **deterministic execution**, **chunked world storage**, and **fast iteration**.
+
+## Highlights
 
 - **World size:** 30 miles × 30 miles
 - **Cell resolution:** 3 ft × 3 ft (52,800 × 52,800 addressable cells)
-- **Memory model:** the full world is **not** stored; only **loaded chunks** exist in memory via an LRU cache.
-- **Occupations:** 100% **data-driven** via `example.bronze` (no vocation logic hard-coded in C)
+- **Memory model:** the full world is **not** stored; only **loaded chunks** exist in memory via an **LRU cache**
+- **Occupations:** defined in `example.bronze` under the `vocations` block (no vocation logic hard-coded)
+- **License:** MIT (see `LICENSE`)
+
+## Repository layout
+
+- `example.bronze` — main DSL example (config + resources + vocations + tasks + rules)
+- `main.c` — CLI entry point: parse → init → run loop → output
+- `brz_parser.*` — lexer + parser for the DSL (word tokens + braces)
+- `brz_dsl.*` — DSL “semantic” helpers (name→enum mapping, lookup helpers)
+- `brz_world.*` — deterministic world generation + seasons + tags + resource sampling
+- `brz_cache.*` — chunk cache and LRU eviction (only keep active world regions in memory)
+- `brz_sim.*` — simulation engine: agents, settlements, task selection, execution, snapshots/maps
+- `brz_util.*` — shared utilities (hashing, clamp, assertions)
 
 ## Build
 
-```bash
+```sh
 make
 ```
 
 ## Run
 
-```bash
+```sh
 ./bronzesim example.bronze
 ```
 
-During the run it prints a summary every 10 days.
+## Documentation
 
-### Snapshots
+- `SPECIFICATION.md` — formal technical specification (architecture, determinism, invariants)
+- `DSL_MANUAL.md` — authoritative DSL language reference (grammar + semantics + limits)
+- `DOCUMENTATION.md` — deep, file-by-file and flow-by-flow explanation of the codebase
+- `CONTRIBUTING.md` — how to get involved
+- `CODE_OF_CONDUCT.md` — community standards
 
-If `snapshot_every N` is set in `sim { ... }`, the simulator writes:
+## Contributing
 
-- `snapshot_day00030.json`
-- `snapshot_day00060.json`
-- ...
-
-### ASCII maps (optional)
-
-If `map_every N` is set, it writes coarse ASCII maps:
-
-- `map_day00030.txt` etc.
-
-## DSL Quick Reference
-
-Top-level blocks:
-
-- `world { seed <u32> }`
-- `sim { days <int> cache_max <int> snapshot_every <int> map_every <int> }`
-- `agents { count <int> }`
-- `settlements { count <int> }`
-- `resources { fish_renew <f> grain_renew <f> wood_renew <f> clay_renew <f> copper_renew <f> tin_renew <f> fire_renew <f> plant_fiber_renew <f> cattle_renew <f> sheep_renew <f> pig_renew <f> charcoal_renew <f> religion_renew <f> nationalism_renew <f> }`
-- `vocations { ... }`
-
-### vocations
-
-```text
-vocations {
-  vocation <name> {
-    task <taskName> { <op> ... }
-    rule <ruleName> { when <conditions> do <taskName> weight <int> [prob <0..1>] }
-  }
-}
-```
-
-### ops
-
-- `move_to <tag>` where tag is one of:
-  - `coast beach forest marsh hill river field settlement`
-- `gather <resource> <amount>`
-  - resources: `fish grain wood clay copper tin`
-- `craft <item> <amount>`
-  - items: `pot bronze tool`
-- `trade`
-- `rest`
-- `roam <steps>`
-
-### conditions (AND)
-
-- `hunger > <float>`
-- `fatigue < <float>`
-- `season == spring|summer|autumn|winter`
-- `inv <item> <cmp> <int>`
-  - cmp: `> < >= <=`
-  - items: `fish grain wood clay copper tin bronze tool pot`
-- `prob <float>` (may appear as a condition or at end of rule)
-
-Example:
-
-```text
-rule winter_wood {
-  when season == winter and fatigue < 0.85
-  do woodcut
-  weight 5
-}
-```
-
-## Emergent role switching / apprenticeship
-
-- Teen agents (10–16) can occasionally inherit their household parent's vocation (apprenticeship).
-- Every ~30 days, the sim measures per-capita shortages and nudges a small number of adults into deficit vocations
-  (if vocations named `farmer`, `fisher`, `potter`, `smith` exist).
+Pull requests are welcome. See `CONTRIBUTING.md`.
