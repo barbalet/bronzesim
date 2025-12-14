@@ -1,0 +1,64 @@
+Occupation, Category
+Farmer / crop tender,Food
+Cattle herder,Food
+Sheep and goat herder,Food
+Pig keeper,Food
+Dairy producer (milk/cheese maker),Food
+Grain grinder / quern operator,Food
+Brewer (ale maker),Food
+Salt worker (evaporating seawater),Food
+Fisher,Food
+Shellfish collector,Foraging
+Deer hunter,Hunting
+Wild fowler (birds and eggs),Foraging
+Trapper/snare setter,Hunting
+"Forager (berries, nuts, plants)",Foraging
+Medicinal herb gatherer,Gathering
+Flint knapper (for tools not replaced by bronze yet),Craft
+"Bronze smith (axes, daggers, ornaments)",Metalwork
+Metallurgical smelter/charcoal furnace operator,Metalwork
+Charcoal burner,Metalwork
+"Gold worker (ornaments, beads)",Metalwork
+Stone polisher / grinder,Stonework
+Pottery maker,Crafts
+Pot kiln tender,Crafts
+Basket weaver,Crafts
+Leatherworker,Crafts
+Tanner,Crafts
+Textile weaver,Crafts
+"Spinner (wool, flax)",Crafts
+Dye-maker,Crafts
+"Rope maker (hemp, flax, sea grasses)",Crafts
+Carpenter,Woodworking
+Bowyer (bow maker),Woodworking
+Fletcher (arrow maker),Woodworking
+Woodcarver,Woodworking
+"Boat builder (skin, plank, or dugout boats)",Construction
+Oar/paddle maker,Construction
+House builder / wattle-and-daub specialist,Construction
+Thatch roofer,Construction
+Sailor / paddler / navigator,Maritime
+Net maker,Maritime
+Fish-smoker / preserver,
+Boat repairer,Construction
+Coastal trader / barge operator,Maritime
+Landing-place coordinator,Maritime
+Chieftain / village leader,Community
+Speaker / diplomat between settlements,Community
+Ritual specialist / priest-seer,Ritual
+Burial mound constructor,Construction
+Storyteller / oral historian,Social
+"Musician (lyre, pipes, drums)",Social
+Carver of ritual/ceremonial objects,Ritual
+Peacekeeper / watchman,Social
+Warrior / defender,Community
+Bone tool maker,Tools
+Antler tool maker,Tools
+Millstone maker,Construction
+Fire-keeper / hearth manager,Daily Life
+Cook / communal feast preparer,Daily Life
+Water carrier,Daily Life
+Clothing maker / garment assembler,Crafts
+Infant,Misc
+Children,Misc
+Elderly,Misc
