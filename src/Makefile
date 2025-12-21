@@ -13,3 +13,16 @@ bronzesim: $(OBJS)
 
 clean:
 	rm -f *.o bronzesim
+
+
+# Regenerate documentation sections that are derived from the parser grammar.
+.PHONY: docs
+
+docs:
+	python3 ../tools/extract_dsl_grammar.py
+	python3 ../tools/update_docs.py
+
+
+.PHONY: verify-docs
+verify-docs:
+	python3 ../tools/verify_docs.py
