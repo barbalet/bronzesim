@@ -459,17 +459,44 @@ static void parse_vocations_block(Lexer* lx, ParsedConfig* cfg)
         // validate rules point at tasks
         for(int ri=0; ri<voc->rule_count; ri++)
         {
-            const char* tname = voc->rules[ri].task_name;
-            if(voc_task(voc, tname) == NULL)
-            {
-                // Be forgiving: bind to first task if present, otherwise synthesize an "idle" task.
-                if(voc->task_count > 0)
-                {
-                    strncpy(voc->rules[ri].task_name, voc->tasks[0].name, sizeof(voc->rules[ri].task_name)-1);
-                    fprintf(stderr, "WARN: vocation %s rule %s refers to missing task %s; using %s\n",
-                            voc->name, voc->rules[ri].name, tname, voc->tasks[0].name);
-                }
-                else
+            const char* tname_ptr = voc->rules[ri].task_name;
+/* Copy the original rule task name before we potentially overwrite it.
+   (tname_ptr points into voc->rules[ri].task_name, so modifying that string
+    would otherwise change what we print in warnings.) */
+char missing_task[sizeof(voc->rules[ri].task_name)];
+memset(missing_task, 0, sizeof(missing_task));
+strncpy(missing_task, tname_ptr, sizeof(missing_task)-1);
+
+if(voc_task(voc, missing_task) == NULL)
+{
+    /* Common convenience: allow rules to "do wander" without declaring a wander task.
+       Synthesize a simple wander task that roams a few steps. */
+    if(strcmp(missing_task, "wander") == 0)
+    {
+        if(voc_task(voc, "wander") == NULL)
+        {
+            BRZ_ASSERT(voc->task_count < MAX_TASKS_PER_VOC);
+            TaskDef* w = &voc->tasks[voc->task_count++];
+            memset(w, 0, sizeof(*w));
+            strncpy(w->name, "wander", sizeof(w->name)-1);
+            w->op_count = 1;
+            w->ops[0].kind = OP_ROAM;
+            w->ops[0].arg_i = 2; /* default roam steps */
+        }
+        strncpy(voc->rules[ri].task_name, "wander", sizeof(voc->rules[ri].task_name)-1);
+        fprintf(stderr, "WARN: vocation %s rule %s referred to missing task %s; synthesized %s\n",
+                voc->name, voc->rules[ri].name, missing_task, "wander");
+    }
+    else
+    {
+        // Be forgiving: bind to first task if present, otherwise synthesize an "idle" task.
+        if(voc->task_count > 0)
+        {
+            strncpy(voc->rules[ri].task_name, voc->tasks[0].name, sizeof(voc->rules[ri].task_name)-1);
+            fprintf(stderr, "WARN: vocation %s rule %s refers to missing task %s; using %s\n",
+                    voc->name, voc->rules[ri].name, missing_task, voc->tasks[0].name);
+        }
+        else
                 {
                     // Create idle task
                     BRZ_ASSERT(voc->task_count < MAX_TASKS_PER_VOC);
@@ -487,6 +514,7 @@ static void parse_vocations_block(Lexer* lx, ParsedConfig* cfg)
         {
         }
     }
+}
 }
 
 
