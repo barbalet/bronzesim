@@ -25,7 +25,7 @@ typedef struct Chunk
 {
     int32_t cx, cy;
     uint8_t terrain[CHUNK_CELLS];
-    uint8_t res[RES_MAX][CHUNK_CELLS];
+    uint8_t* res; // [spec->resources.count * CHUNK_CELLS] row-major: res[rk*CHUNK_CELLS + i]
 
     struct Chunk* hash_next;
     struct Chunk* lru_prev;

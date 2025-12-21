@@ -60,6 +60,8 @@ static void skip_ws_and_comments(Lexer* lx)
     }
 }
 
+static void parse_simple_block_kv(Lexer* lx, const char* block, ParsedConfig* cfg);
+
 static Tok next_tok(Lexer* lx)
 {
     skip_ws_and_comments(lx);
@@ -127,128 +129,40 @@ static void tok_expect(Lexer* lx, TokKind k)
     BRZ_ASSERT(t.kind == k);
 }
 
-#if 0
-static void parse_simple_block_kv(Lexer* lx, const char* block, ParsedConfig* cfg)
-{
-    (void)block;
-    tok_expect(lx, TK_LBRACE);
-    for(;;)
-    {
-        Tok k = next_tok(lx);
-        if(k.kind == TK_RBRACE) break;
-        Tok v = next_tok(lx);
-        if(brz_streq(k.text,"seed"))
-        {
-            uint32_t s=0;
-            if(to_u32(v.text,&s)) cfg->seed = s;
-        }
-        else if(brz_streq(k.text,"days"))
-        {
-            int d=0;
-            if(to_i32(v.text,&d)) cfg->days = d;
-        }
-        else if(brz_streq(k.text,"cache_max"))
-        {
-            int c=0;
-            if(to_i32(v.text,&c)) cfg->cache_max = (uint32_t)(c>16?c:16);
-        }
-        else if(brz_streq(k.text,"count"))
-        {
-            int c=0;
-            if(to_i32(v.text,&c))
-            {
-                // handled by caller depending on block name
-                (void)c;
-            }
-        }
-        else if(brz_streq(k.text,"snapshot_every"))
-        {
-            int n=0;
-            if(to_i32(v.text,&n)) cfg->snapshot_every_days = n;
-        }
-        else if(brz_streq(k.text,"map_every"))
-        {
-            int n=0;
-            if(to_i32(v.text,&n)) cfg->map_every_days = n;
-        }
-        else if(brz_streq(k.text,"fish_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->fish_renew = f;
-        }
-        else if(brz_streq(k.text,"grain_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->grain_renew = f;
-        }
-        else if(brz_streq(k.text,"wood_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->wood_renew = f;
-        }
-        else if(brz_streq(k.text,"clay_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->clay_renew = f;
-        }
-        else if(brz_streq(k.text,"copper_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->copper_renew = f;
-        }
-        else if(brz_streq(k.text,"tin_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->tin_renew = f;
-        }
 
-        else if(brz_streq(k.text,"fire_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->fire_renew = f;
-        }
-        else if(brz_streq(k.text,"plant_fiber_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->plant_fiber_renew = f;
-        }
-        else if(brz_streq(k.text,"cattle_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->cattle_renew = f;
-        }
-        else if(brz_streq(k.text,"sheep_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->sheep_renew = f;
-        }
-        else if(brz_streq(k.text,"pig_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->pig_renew = f;
-        }
-        else if(brz_streq(k.text,"charcoal_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->charcoal_renew = f;
-        }
-        else if(brz_streq(k.text,"religion_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->religion_renew = f;
-        }
-        else if(brz_streq(k.text,"nationalism_renew"))
-        {
-            float f=0;
-            if(to_f32(v.text,&f)) cfg->nationalism_renew = f;
-        }
-        else
-        {
-            // ignore unknown k/v
-        }
-    }
+static void cfg_ensure_renew_capacity(ParsedConfig* cfg)
+{
+    if(cfg->renew_per_day && cfg->resources.count > 0)
+        return;
+    if(cfg->resources.count <= 0)
+        return;
+    cfg->renew_per_day = (float*)calloc((size_t)cfg->resources.count, sizeof(float));
+    BRZ_ASSERT(cfg->renew_per_day != NULL);
 }
-#endif
+
+static int cfg_add_resource_kind(ParsedConfig* cfg, const char* name)
+{
+    int before = cfg->resources.count;
+    int id = kind_table_add(&cfg->resources, name);
+    if(id < 0) return -1;
+    if(cfg->resources.count != before)
+    {
+        // grew by one; grow renew array too
+        float* nn = (float*)realloc(cfg->renew_per_day, (size_t)cfg->resources.count * sizeof(float));
+        BRZ_ASSERT(nn != NULL);
+        cfg->renew_per_day = nn;
+        cfg->renew_per_day[cfg->resources.count-1] = 0.0f;
+    }
+    if(cfg->renew_per_day == NULL)
+        cfg->renew_per_day = (float*)calloc((size_t)cfg->resources.count, sizeof(float));
+    return id;
+}
+
+static int cfg_add_item_kind(ParsedConfig* cfg, const char* name)
+{
+    return kind_table_add(&cfg->items, name);
+}
+
 
 static CmpKind parse_cmp(const char* s)
 {
@@ -264,7 +178,7 @@ static CmpKind parse_cmp(const char* s)
 // when season == winter
 // when inv fish > 2
 // optional: and ... (repeat)
-static void parse_condition(Lexer* lx, Condition* c)
+static void parse_condition(Lexer* lx, ParsedConfig* cfg, Condition* c)
 {
     memset(c,0,sizeof(*c));
     c->season_eq = SEASON_ANY;
@@ -328,14 +242,16 @@ static void parse_condition(Lexer* lx, Condition* c)
             BRZ_ASSERT(op.kind==TK_WORD);
             Tok v    = next_tok(lx);
             BRZ_ASSERT(v.kind==TK_WORD);
-            ItemKind ik;
-            BRZ_ASSERT(dsl_parse_item(item.text,&ik));
+            int ik_id = -1;
+            ik_id = dsl_parse_item_id(&cfg->items, item.text);
+            if(ik_id < 0) ik_id = cfg_add_item_kind(cfg, item.text);
+            BRZ_ASSERT(ik_id >= 0);
             int iv=0;
             BRZ_ASSERT(to_i32(v.text,&iv));
             CmpKind ck = parse_cmp(op.text);
             BRZ_ASSERT(ck != CMP_ANY);
             BRZ_ASSERT(c->inv_count < 4);
-            c->inv_item[c->inv_count] = ik;
+            c->inv_item[c->inv_count] = ik_id;
             c->inv_cmp[c->inv_count] = ck;
             c->inv_value[c->inv_count] = iv;
             c->inv_count++;
@@ -370,7 +286,7 @@ static void parse_condition(Lexer* lx, Condition* c)
     }
 }
 
-static void parse_task(Lexer* lx, VocationDef* voc)
+static void parse_task(Lexer* lx, ParsedConfig* cfg, VocationDef* voc)
 {
     Tok name = next_tok(lx);
     BRZ_ASSERT(name.kind==TK_WORD);
@@ -404,13 +320,13 @@ static void parse_task(Lexer* lx, VocationDef* voc)
             BRZ_ASSERT(res.kind==TK_WORD);
             Tok amt = next_tok(lx);
             BRZ_ASSERT(amt.kind==TK_WORD);
-            ResourceKind rk;
-            BRZ_ASSERT(dsl_parse_resource(res.text,&rk));
+            int rk_id = -1;
+            BRZ_ASSERT((dsl_parse_resource_id(&cfg->resources, res.text) >= 0));
             int a=0;
             BRZ_ASSERT(to_i32(amt.text,&a));
             t->ops[t->op_count++] = (OpDef)
             {
-                .kind=OP_GATHER, .arg_i=a, .arg_j=(int)rk
+                .kind=OP_GATHER, .arg_i=a, .arg_j=rk_id
             };
         }
         else if(brz_streq(op.text,"craft"))
@@ -419,13 +335,13 @@ static void parse_task(Lexer* lx, VocationDef* voc)
             BRZ_ASSERT(item.kind==TK_WORD);
             Tok amt  = next_tok(lx);
             BRZ_ASSERT(amt.kind==TK_WORD);
-            ItemKind ik;
-            BRZ_ASSERT(dsl_parse_item(item.text,&ik));
+            int ik_id = -1;
+            BRZ_ASSERT((dsl_parse_item_id(&cfg->items, item.text) >= 0));
             int a=0;
             BRZ_ASSERT(to_i32(amt.text,&a));
             t->ops[t->op_count++] = (OpDef)
             {
-                .kind=OP_CRAFT, .arg_i=a, .arg_j=(int)ik
+                .kind=OP_CRAFT, .arg_i=a, .arg_j=ik_id
             };
         }
         else if(brz_streq(op.text,"trade"))
@@ -460,7 +376,7 @@ static void parse_task(Lexer* lx, VocationDef* voc)
     }
 }
 
-static void parse_rule(Lexer* lx, VocationDef* voc)
+static void parse_rule(Lexer* lx, ParsedConfig* cfg, VocationDef* voc)
 {
     Tok name = next_tok(lx);
     BRZ_ASSERT(name.kind==TK_WORD);
@@ -474,7 +390,7 @@ static void parse_rule(Lexer* lx, VocationDef* voc)
     Tok when = next_tok(lx);
     BRZ_ASSERT(when.kind==TK_WORD && brz_streq(when.text,"when"));
     // parse_condition consumes up to and including "do"
-    parse_condition(lx, &r->cond);
+    parse_condition(lx, cfg, &r->cond);
 
     Tok task = next_tok(lx);
     BRZ_ASSERT(task.kind==TK_WORD);
@@ -528,11 +444,11 @@ static void parse_vocations_block(Lexer* lx, ParsedConfig* cfg)
             BRZ_ASSERT(k.kind==TK_WORD);
             if(brz_streq(k.text,"task"))
             {
-                parse_task(lx, voc);
+                parse_task(lx, cfg, voc);
             }
             else if(brz_streq(k.text,"rule"))
             {
-                parse_rule(lx, voc);
+                parse_rule(lx, cfg, voc);
             }
             else
             {
@@ -573,6 +489,136 @@ static void parse_vocations_block(Lexer* lx, ParsedConfig* cfg)
     }
 }
 
+
+static void parse_kind_list_block(Lexer* lx, ParsedConfig* cfg, bool is_resource)
+{
+    tok_expect(lx, TK_LBRACE);
+    for(;;)
+    {
+        Tok t = next_tok(lx);
+        if(t.kind == TK_RBRACE) break;
+        if(t.kind != TK_WORD) continue;
+        if(is_resource)
+            cfg_add_resource_kind(cfg, t.text);
+        else
+            cfg_add_item_kind(cfg, t.text);
+    }
+}
+
+static void parse_simple_block_kv(Lexer* lx, const char* block, ParsedConfig* cfg)
+{
+    (void)block;
+    tok_expect(lx, TK_LBRACE);
+
+    for(;;)
+    {
+        Tok k = next_tok(lx);
+        if(k.kind == TK_RBRACE) break;
+        if(k.kind == TK_EOF) break;
+        if(k.kind != TK_WORD) continue;
+
+        Tok v = next_tok(lx);
+        if(v.kind == TK_RBRACE) break;
+        if(v.kind == TK_EOF) break;
+
+        if(brz_streq(k.text,"seed"))
+        {
+            int n=0;
+            if(to_i32(v.text,&n)) cfg->seed = (uint32_t)n;
+        }
+        else if(brz_streq(k.text,"settlement_count"))
+        {
+            int n=0;
+            if(to_i32(v.text,&n)) cfg->settlement_count = n;
+        }
+        else if(brz_streq(k.text,"agent_count"))
+        {
+            int n=0;
+            if(to_i32(v.text,&n)) cfg->agent_count = n;
+        }
+        else if(brz_streq(k.text,"cache_max"))
+        {
+            int n=0;
+            if(to_i32(v.text,&n)) cfg->cache_max = (uint32_t)n;
+        }
+        else if(brz_streq(k.text,"snapshot_every"))
+        {
+            int n=0;
+            if(to_i32(v.text,&n)) cfg->snapshot_every_days = n;
+        }
+        else if(brz_streq(k.text,"map_every"))
+        {
+            int n=0;
+            if(to_i32(v.text,&n)) cfg->map_every_days = n;
+        }
+        else
+        {
+            // Dynamic resource renew values: "<resource>_renew <float>"
+            const char* kt = k.text;
+            size_t n = strlen(kt);
+            if(n > 6 && strcmp(kt + (n-6), "_renew")==0)
+            {
+                char name[256];
+                size_t base_n = n - 6;
+                if(base_n >= sizeof(name)) base_n = sizeof(name)-1;
+                memcpy(name, kt, base_n);
+                name[base_n] = 0;
+
+                float f=0;
+                if(to_f32(v.text,&f))
+                {
+                    int rid = kind_table_find(&cfg->resources, name);
+                    if(rid < 0) rid = cfg_add_resource_kind(cfg, name);
+                    if(rid >= 0)
+                    {
+                        if(cfg->renew_per_day == NULL) cfg_ensure_renew_capacity(cfg);
+                        cfg->renew_per_day[rid] = f;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+void parse_kinds_block(Lexer* lx, ParsedConfig* cfg)
+{
+    tok_expect(lx, TK_LBRACE);
+    for(;;)
+    {
+        Tok t = next_tok(lx);
+        if(t.kind == TK_RBRACE) break;
+        if(t.kind != TK_WORD) continue;
+        if(brz_streq(t.text,"resources"))
+        {
+            parse_kind_list_block(lx, cfg, true);
+        }
+        else if(brz_streq(t.text,"items"))
+        {
+            parse_kind_list_block(lx, cfg, false);
+        }
+        else
+        {
+            // unknown sub-block; skip
+            Tok k = next_tok(lx);
+            if(k.kind == TK_LBRACE)
+            {
+                int depth=1;
+                while(depth>0)
+                {
+                    Tok tt = next_tok(lx);
+                    if(tt.kind == TK_LBRACE) depth++;
+                    else if(tt.kind == TK_RBRACE) depth--;
+                    else if(tt.kind == TK_EOF) break;
+                }
+            }
+        }
+    }
+
+    // ensure renew array exists if resources were declared
+    if(cfg->resources.count > 0 && cfg->renew_per_day == NULL)
+        cfg_ensure_renew_capacity(cfg);
+}
 bool brz_parse_file(const char* path, ParsedConfig* out_cfg)
 {
     FILE* f = fopen(path,"rb");
@@ -600,27 +646,13 @@ bool brz_parse_file(const char* path, ParsedConfig* out_cfg)
     voc_table_init(&cfg.voc_table);
     cfg.seed = 1337;
     cfg.days = 120;
+    kind_table_init(&cfg.resources);
+    kind_table_init(&cfg.items);
+    cfg.renew_per_day = NULL;
+
     cfg.agent_count = 220;
     cfg.settlement_count = 6;
     cfg.cache_max = 2048;
-
-    cfg.fish_renew   = 0.08f;
-    cfg.grain_renew  = 0.06f;
-    cfg.wood_renew   = 0.03f;
-    cfg.clay_renew   = 0.02f;
-    cfg.copper_renew = 0.005f;
-    cfg.tin_renew    = 0.002f;
-
-
-
-    cfg.fire_renew        = 0.10f;
-    cfg.plant_fiber_renew = 0.04f;
-    cfg.cattle_renew      = 0.010f;
-    cfg.sheep_renew       = 0.010f;
-    cfg.pig_renew         = 0.010f;
-    cfg.charcoal_renew    = 0.005f;
-    cfg.religion_renew    = 0.002f;
-    cfg.nationalism_renew = 0.0005f;
     cfg.snapshot_every_days = 30;
     cfg.map_every_days = 0;
 
@@ -712,31 +744,13 @@ bool brz_parse_file(const char* path, ParsedConfig* out_cfg)
                 }
             }
         }
+        else if(brz_streq(t.text,"kinds"))
+        {
+            parse_kinds_block(&lx, &cfg);
+        }
         else if(brz_streq(t.text,"resources"))
         {
-            tok_expect(&lx, TK_LBRACE);
-            for(;;)
-            {
-                Tok k = next_tok(&lx);
-                if(k.kind==TK_RBRACE) break;
-                Tok v = next_tok(&lx);
-                float fv=0;
-                if(!to_f32(v.text,&fv)) fv=0;
-                if(brz_streq(k.text,"fish_renew")) cfg.fish_renew = fv;
-                else if(brz_streq(k.text,"grain_renew")) cfg.grain_renew = fv;
-                else if(brz_streq(k.text,"wood_renew")) cfg.wood_renew = fv;
-                else if(brz_streq(k.text,"clay_renew")) cfg.clay_renew = fv;
-                else if(brz_streq(k.text,"copper_renew")) cfg.copper_renew = fv;
-                else if(brz_streq(k.text,"tin_renew")) cfg.tin_renew = fv;
-                 else if(brz_streq(k.text,"fire_renew")) cfg.fire_renew = fv;
-                 else if(brz_streq(k.text,"plant_fiber_renew")) cfg.plant_fiber_renew = fv;
-                 else if(brz_streq(k.text,"cattle_renew")) cfg.cattle_renew = fv;
-                 else if(brz_streq(k.text,"sheep_renew")) cfg.sheep_renew = fv;
-                 else if(brz_streq(k.text,"pig_renew")) cfg.pig_renew = fv;
-                 else if(brz_streq(k.text,"charcoal_renew")) cfg.charcoal_renew = fv;
-                 else if(brz_streq(k.text,"religion_renew")) cfg.religion_renew = fv;
-                 else if(brz_streq(k.text,"nationalism_renew")) cfg.nationalism_renew = fv;
-            }
+            parse_simple_block_kv(&lx, "resources", &cfg);
         }
         else if(brz_streq(t.text,"vocations"))
         {
@@ -774,3 +788,17 @@ bool brz_parse_file(const char* path, ParsedConfig* out_cfg)
     return true;
 }
 
+
+
+
+void brz_parsed_config_destroy(ParsedConfig* cfg)
+{
+    if(!cfg) return;
+    free(cfg->renew_per_day);
+    cfg->renew_per_day = NULL;
+
+    voc_table_destroy(&cfg->voc_table);
+    kind_table_destroy(&cfg->resources);
+    kind_table_destroy(&cfg->items);
+    memset(cfg,0,sizeof(*cfg));
+}

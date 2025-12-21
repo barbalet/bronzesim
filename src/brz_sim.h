@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include "brz_world.h"
 #include "brz_cache.h"
+#include "brz_parser.h"
 #include "brz_dsl.h"
 
 typedef struct
@@ -29,7 +30,7 @@ typedef struct
 typedef struct
 {
     int32_t x,y;
-    float val[ITEM_MAX]; // value weight per item for trading
+    float* val; // length = sim->item_kind_count // value weight per item for trading
 } Settlement;
 
 typedef struct
@@ -39,7 +40,7 @@ typedef struct
     int age;             // years
     int household_id;
 
-    int inv[ITEM_MAX];
+    int* inv; // length = sim->item_kind_count
 
     float hunger;        // 0..1
     float fatigue;       // 0..1
@@ -51,6 +52,10 @@ typedef struct
     WorldSpec world;
     WorldGen gen;
     ChunkCache cache;
+
+    // dynamic kinds (defined by the DSL)
+    KindTable item_kinds;
+    int item_kind_count;
 
     Settlement* settlements;
     int settlement_count;
@@ -69,7 +74,7 @@ typedef struct
     uint32_t switch_every_days;
 } Sim;
 
-void sim_init(Sim* s, const WorldSpec* spec, uint32_t cache_max, int agent_count, const VocationTable* vt);
+void sim_init(Sim* s, ParsedConfig* cfg);
 void sim_destroy(Sim* s);
 
 void sim_step(Sim* s);

@@ -36,6 +36,101 @@
 #include <stdlib.h>
 #include <string.h>
 
+static char* brz_strdup(const char* s)
+{
+    if(!s) return NULL;
+    size_t n = strlen(s);
+    char* out = (char*)malloc(n+1);
+    if(!out) return NULL;
+    memcpy(out,s,n+1);
+    return out;
+}
+
+void kind_table_init(KindTable* kt)
+{
+    if(!kt) return;
+    kt->count = 0;
+    kt->cap = 0;
+    kt->names = NULL;
+}
+
+void kind_table_destroy(KindTable* kt)
+{
+    if(!kt) return;
+    for(int i=0;i<kt->count;i++)
+        free(kt->names[i]);
+    free(kt->names);
+    kt->names = NULL;
+    kt->count = 0;
+    kt->cap = 0;
+}
+
+static int kind_table_grow(KindTable* kt, int want_cap)
+{
+    if(kt->cap >= want_cap) return 0;
+    int new_cap = (kt->cap==0)?8:kt->cap;
+    while(new_cap < want_cap) new_cap *= 2;
+    char** nn = (char**)realloc(kt->names, (size_t)new_cap * sizeof(char*));
+    if(!nn) return -1;
+    kt->names = nn;
+    kt->cap = new_cap;
+    return 0;
+}
+
+int kind_table_find(const KindTable* kt, const char* name)
+{
+    if(!kt || !name) return -1;
+    for(int i=0;i<kt->count;i++)
+    {
+        if(strcmp(kt->names[i], name)==0)
+            return i;
+    }
+    return -1;
+}
+
+int kind_table_add(KindTable* kt, const char* name)
+{
+    if(!kt || !name || !name[0]) return -1;
+    int existing = kind_table_find(kt, name);
+    if(existing >= 0) return existing;
+
+    if(kind_table_grow(kt, kt->count+1) != 0) return -1;
+    kt->names[kt->count] = brz_strdup(name);
+    if(!kt->names[kt->count]) return -1;
+    return kt->count++;
+}
+
+const char* kind_table_name(const KindTable* kt, int id)
+{
+    if(!kt || id < 0 || id >= kt->count) return "";
+    return kt->names[id];
+}
+
+static const char* normalize_kind_alias(const char* s)
+{
+    if(!s) return s;
+    // resource/item spelling aliases accepted by older DSL files
+    if(strcmp(s,"plantfibre")==0) return "plant_fiber";
+    if(strcmp(s,"plantfiber")==0) return "plant_fiber";
+    if(strcmp(s,"charcoal")==0) return "charcoal";
+    return s;
+}
+
+int dsl_parse_resource_id(const KindTable* resources, const char* s)
+{
+    if(!resources || !s) return -1;
+    s = normalize_kind_alias(s);
+    return kind_table_find(resources, s);
+}
+
+int dsl_parse_item_id(const KindTable* items, const char* s)
+{
+    if(!items || !s) return -1;
+    s = normalize_kind_alias(s);
+    return kind_table_find(items, s);
+}
+
+
 void voc_table_init(VocationTable* vt)
 {
     vt->vocation_cap = MAX_VOCATIONS;
@@ -99,133 +194,7 @@ void vocation_add_rule(VocationDef* v, const RuleDef* r)
 
 
 
-bool dsl_parse_resource(const char* s, ResourceKind* out)
-{
-    if(!s) return false;
-    if(strcmp(s,"fish")==0)
-    {
-        *out=RES_FISH;
-        return true;
-    }
-    if(strcmp(s,"grain")==0)
-    {
-        *out=RES_GRAIN;
-        return true;
-    }
-    if(strcmp(s,"wood")==0)
-    {
-        *out=RES_WOOD;
-        return true;
-    }
-    if(strcmp(s,"clay")==0)
-    {
-        *out=RES_CLAY;
-        return true;
-    }
-    if(strcmp(s,"copper")==0)
-    {
-        *out=RES_COPPER;
-        return true;
-    }
-    if(strcmp(s,"tin")==0)
-    {
-        *out=RES_TIN;
-        return true;
-    }
 
-    if(strcmp(s,"fire")==0)
-    {
-        *out=RES_FIRE;
-        return true;
-    }
-    if(strcmp(s,"plant_fiber")==0 || strcmp(s,"plantfibre")==0 || strcmp(s,"plant_fibre")==0)
-    {
-        *out=RES_PLANT_FIBER;
-        return true;
-    }
-    if(strcmp(s,"cattle")==0)
-    {
-        *out=RES_CATTLE;
-        return true;
-    }
-    if(strcmp(s,"sheep")==0)
-    {
-        *out=RES_SHEEP;
-        return true;
-    }
-    if(strcmp(s,"pig")==0)
-    {
-        *out=RES_PIG;
-        return true;
-    }
-    if(strcmp(s,"charcoal")==0)
-    {
-        *out=RES_CHARCOAL;
-        return true;
-    }
-    if(strcmp(s,"religion")==0)
-    {
-        *out=RES_RELIGION;
-        return true;
-    }
-    if(strcmp(s,"nationalism")==0)
-    {
-        *out=RES_NATIONALISM;
-        return true;
-    }
-    return false;
-}
-
-bool dsl_parse_item(const char* s, ItemKind* out)
-{
-    if(!s) return false;
-    if(strcmp(s,"fish")==0)
-    {
-        *out=ITEM_FISH;
-        return true;
-    }
-    if(strcmp(s,"grain")==0)
-    {
-        *out=ITEM_GRAIN;
-        return true;
-    }
-    if(strcmp(s,"wood")==0)
-    {
-        *out=ITEM_WOOD;
-        return true;
-    }
-    if(strcmp(s,"clay")==0)
-    {
-        *out=ITEM_CLAY;
-        return true;
-    }
-    if(strcmp(s,"copper")==0)
-    {
-        *out=ITEM_COPPER;
-        return true;
-    }
-    if(strcmp(s,"tin")==0)
-    {
-        *out=ITEM_TIN;
-        return true;
-    }
-    if(strcmp(s,"bronze")==0)
-    {
-        *out=ITEM_BRONZE;
-        return true;
-    }
-    if(strcmp(s,"tool")==0)
-    {
-        *out=ITEM_TOOL;
-        return true;
-    }
-    if(strcmp(s,"pot")==0)
-    {
-        *out=ITEM_POT;
-        return true;
-    }
-    return false;
-}
 
 bool dsl_parse_tagbit(const char* s, int* out_tagbit)
 {

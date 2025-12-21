@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define CH_RES(ch,rk,i) ((ch)->res[(rk)*CHUNK_CELLS + (i)])
+
 static uint32_t key_hash(int32_t cx, int32_t cy)
 {
     return brz_hash_u32((uint32_t)cx, (uint32_t)cy, 0xA5A5A5A5u);
@@ -97,9 +99,9 @@ static void generate_chunk(ChunkCache* cc, Chunk* ch)
             uint8_t tags = world_cell_tags(g, wx, wy, cc->spec->settlement_count);
             ch->terrain[idx] = tags;
 
-            for(int r=0; r<RES_MAX; r++)
+            for(int r=0; r<cc->spec->resources.count; r++)
             {
-                ch->res[r][idx] = world_cell_res0(g, wx, wy, (ResourceKind)r, tags);
+                CH_RES(ch,r,idx) = world_cell_res0(g, cc->spec, wx, wy, r, tags);
             }
         }
     }
@@ -111,6 +113,8 @@ static void evict_one(ChunkCache* cc)
     if(!victim) return;
     lru_remove(cc, victim);
     hash_remove(cc, victim);
+    free(victim->res);
+    victim->res = NULL;
     free(victim);
     cc->live_chunks--;
 }
@@ -156,6 +160,11 @@ Chunk* cache_get_chunk(ChunkCache* cc, int32_t cx, int32_t cy)
 
     ch = (Chunk*)calloc(1, sizeof(Chunk));
     BRZ_ASSERT(ch != NULL);
+    // allocate dynamic resource planes
+    int rc = cc->spec->resources.count;
+    BRZ_ASSERT(rc > 0);
+    ch->res = (uint8_t*)calloc((size_t)rc * (size_t)CHUNK_CELLS, sizeof(uint8_t));
+    BRZ_ASSERT(ch->res != NULL);
     ch->cx = cx;
     ch->cy = cy;
 
@@ -182,7 +191,10 @@ Chunk* cache_get_cell(ChunkCache* cc, int32_t x, int32_t y, int* out_idx)
 void cache_regen_loaded(ChunkCache* cc, SeasonKind season)
 {
     float fishMul  = (season==SEASON_WINTER) ? 0.70f : 1.0f;
-    float grainMul = (season==SEASON_WINTER) ? 0.30f : (season==SEASON_SUMMER || season==SEASON_AUTUMN ? 1.0f : 0.70f);
+    float grainMul = (season==SEASON_WINTER) ? 0.30f :
+                     ((season==SEASON_SUMMER || season==SEASON_AUTUMN) ? 1.0f : 0.70f);
+
+    int rc = cc->spec->resources.count;
 
     for(Chunk* ch = cc->lru_head; ch; ch = ch->lru_next)
     {
@@ -190,58 +202,25 @@ void cache_regen_loaded(ChunkCache* cc, SeasonKind season)
         {
             uint8_t tags = ch->terrain[i];
 
+            // Simple seasonal multipliers for a couple of well-known resources.
+            // Everything else uses its configured renew_per_day directly.
+            for(int rk=0; rk<rc; rk++)
+            {
+                const char* nm = kind_table_name(&cc->spec->resources, rk);
+                float mul = 1.0f;
 
-            if(tags & TAG_SETTLE)
-            {
-                int fi = (int)ch->res[RES_FIRE][i] + (int)(cc->spec->res_model.renew_per_day[RES_FIRE] * 255.0f);
-                int re = (int)ch->res[RES_RELIGION][i] + (int)(cc->spec->res_model.renew_per_day[RES_RELIGION] * 255.0f);
-                int na = (int)ch->res[RES_NATIONALISM][i] + (int)(cc->spec->res_model.renew_per_day[RES_NATIONALISM] * 255.0f);
-                ch->res[RES_FIRE][i] = brz_clamp_u8(fi);
-                ch->res[RES_RELIGION][i] = brz_clamp_u8(re);
-                ch->res[RES_NATIONALISM][i] = brz_clamp_u8(na);
-            }
-            if(tags & TAG_COAST)
-            {
-                int v = (int)ch->res[RES_FISH][i] + (int)(cc->spec->res_model.renew_per_day[RES_FISH] * fishMul * 255.0f);
-                ch->res[RES_FISH][i] = brz_clamp_u8(v);
-            }
-            if(tags & TAG_FIELD)
-            {
-                int v = (int)ch->res[RES_GRAIN][i] + (int)(cc->spec->res_model.renew_per_day[RES_GRAIN] * grainMul * 255.0f);
-                ch->res[RES_GRAIN][i] = brz_clamp_u8(v);
-            }
-            if(tags & TAG_FIELD)
-            {
-                int pf = (int)ch->res[RES_PLANT_FIBER][i] + (int)(cc->spec->res_model.renew_per_day[RES_PLANT_FIBER] * 255.0f);
-                int ca = (int)ch->res[RES_CATTLE][i] + (int)(cc->spec->res_model.renew_per_day[RES_CATTLE] * 255.0f);
-                int sh = (int)ch->res[RES_SHEEP][i] + (int)(cc->spec->res_model.renew_per_day[RES_SHEEP] * 255.0f);
-                int pg = (int)ch->res[RES_PIG][i] + (int)(cc->spec->res_model.renew_per_day[RES_PIG] * 255.0f);
-                ch->res[RES_PLANT_FIBER][i] = brz_clamp_u8(pf);
-                ch->res[RES_CATTLE][i] = brz_clamp_u8(ca);
-                ch->res[RES_SHEEP][i] = brz_clamp_u8(sh);
-                ch->res[RES_PIG][i] = brz_clamp_u8(pg);
-            }
-            if(tags & TAG_FOREST)
-            {
-                int v = (int)ch->res[RES_WOOD][i] + (int)(cc->spec->res_model.renew_per_day[RES_WOOD] * 255.0f);
-                ch->res[RES_WOOD][i] = brz_clamp_u8(v);
-            }
-            if(tags & TAG_FOREST)
-            {
-                int chv = (int)ch->res[RES_CHARCOAL][i] + (int)(cc->spec->res_model.renew_per_day[RES_CHARCOAL] * 255.0f);
-                ch->res[RES_CHARCOAL][i] = brz_clamp_u8(chv);
-            }
-            if((tags & TAG_RIVER) || (tags & TAG_MARSH))
-            {
-                int v = (int)ch->res[RES_CLAY][i] + (int)(cc->spec->res_model.renew_per_day[RES_CLAY] * 255.0f);
-                ch->res[RES_CLAY][i] = brz_clamp_u8(v);
-            }
-            if(tags & TAG_HILL)
-            {
-                int cu = (int)ch->res[RES_COPPER][i] + (int)(cc->spec->res_model.renew_per_day[RES_COPPER] * 255.0f);
-                int tn = (int)ch->res[RES_TIN][i]    + (int)(cc->spec->res_model.renew_per_day[RES_TIN] * 255.0f);
-                ch->res[RES_COPPER][i] = brz_clamp_u8(cu);
-                ch->res[RES_TIN][i]    = brz_clamp_u8(tn);
+                if(strcmp(nm,"fish")==0)  mul = fishMul;
+                if(strcmp(nm,"grain")==0) mul = grainMul;
+
+                // Some intangible resources only renew in settlements.
+                if((strcmp(nm,"religion")==0 || strcmp(nm,"nationalism")==0) && !(tags & TAG_SETTLE))
+                    continue;
+
+                float rpd = cc->spec->res_model.renew_per_day ? cc->spec->res_model.renew_per_day[rk] : 0.0f;
+                if(rpd <= 0.0f) continue;
+
+                int v = (int)CH_RES(ch,rk,i) + (int)(rpd * mul * 255.0f);
+                CH_RES(ch,rk,i) = brz_clamp_u8(v);
             }
         }
     }

@@ -38,6 +38,7 @@ static float rng_f01(uint32_t seed, uint32_t a, uint32_t b, uint32_t c)
     return (rng_u32(seed,a,b,c) & 0xFFFFFFu) / (float)0x1000000u;
 }
 
+/*
 static void pick_spawn(WorldGen* g, int i, int32_t* out_x, int32_t* out_y)
 {
     uint32_t h1 = brz_hash_u32((uint32_t)i, g->seed, 0xABCDEF01u);
@@ -47,6 +48,7 @@ static void pick_spawn(WorldGen* g, int i, int32_t* out_x, int32_t* out_y)
     *out_x = x;
     *out_y = y;
 }
+*/
 
 static int nearest_settlement(const Sim* s, int32_t x, int32_t y)
 {
@@ -124,11 +126,11 @@ static void move_to_tag(Sim* s, Agent* a, uint8_t want_tag, int radius)
     a->fatigue += 0.01f;
 }
 
-static int gather(Sim* s, Agent* a, ResourceKind rk, int want_units)
+static int gather(Sim* s, Agent* a, int rk_id, int want_units)
 {
     int idx=0;
     Chunk* ch = cache_get_cell(&s->cache, a->x, a->y, &idx);
-    uint8_t* d = &ch->res[rk][idx];
+    uint8_t* d = &ch->res[(rk_id*CHUNK_CELLS)+idx];
 
     int avail_units = (*d > 0) ? (int)(*d / 32) : 0;
     int take = (avail_units < want_units) ? avail_units : want_units;
@@ -138,62 +140,78 @@ static int gather(Sim* s, Agent* a, ResourceKind rk, int want_units)
     return take;
 }
 
-static void eat(Agent* a)
+static void eat(Sim* s, Agent* a)
 {
     if(a->hunger <= 0.7f) return;
-    if(a->inv[ITEM_FISH] > 0)
+
+    int id_fish  = kind_table_find(&s->item_kinds, "fish");
+    int id_grain = kind_table_find(&s->item_kinds, "grain");
+
+    if(id_fish >= 0 && a->inv[id_fish] > 0)
     {
-        a->inv[ITEM_FISH]--;
+        a->inv[id_fish]--;
         a->hunger -= 0.35f;
     }
-    if(a->hunger > 0.7f && a->inv[ITEM_GRAIN] > 0)
+    if(a->hunger > 0.7f && id_grain >= 0 && a->inv[id_grain] > 0)
     {
-        a->inv[ITEM_GRAIN]--;
+        a->inv[id_grain]--;
         a->hunger -= 0.30f;
     }
     if(a->hunger < 0) a->hunger = 0;
 }
 
 // minimal crafting recipes (still stand-alone; occupations choose "craft X N")
-static void craft_item(Agent* a, ItemKind item, int amount)
+static void craft_item(Sim* s, Agent* a, int item_id, int amount)
 {
+    const char* name = kind_table_name(&s->item_kinds, item_id);
+
+    int id_clay   = kind_table_find(&s->item_kinds, "clay");
+    int id_wood   = kind_table_find(&s->item_kinds, "wood");
+    int id_copper = kind_table_find(&s->item_kinds, "copper");
+    int id_tin    = kind_table_find(&s->item_kinds, "tin");
+    int id_bronze = kind_table_find(&s->item_kinds, "bronze");
+    int id_pot    = kind_table_find(&s->item_kinds, "pot");
+    int id_tool   = kind_table_find(&s->item_kinds, "tool");
+
     for(int i=0; i<amount; i++)
     {
-        switch(item)
+        if(strcmp(name,"pot")==0)
         {
-        case ITEM_POT:
             // 1 pot: 2 clay + 1 wood
-            if(a->inv[ITEM_CLAY] >= 2 && a->inv[ITEM_WOOD] >= 1)
+            if(id_pot >= 0 && id_clay >= 0 && id_wood >= 0 &&
+               a->inv[id_clay] >= 2 && a->inv[id_wood] >= 1)
             {
-                a->inv[ITEM_CLAY] -= 2;
-                a->inv[ITEM_WOOD] -= 1;
-                a->inv[ITEM_POT] += 1;
+                a->inv[id_clay] -= 2;
+                a->inv[id_wood] -= 1;
+                a->inv[id_pot] += 1;
                 a->fatigue += 0.01f;
             }
-            break;
-        case ITEM_BRONZE:
-            // 1 bronze: 1 copper + 1 tin + 2 wood
-            if(a->inv[ITEM_COPPER] >= 1 && a->inv[ITEM_TIN] >= 1 && a->inv[ITEM_WOOD] >= 2)
+        }
+        else if(strcmp(name,"bronze")==0)
+        {
+            // 1 bronze: 1 copper + 1 tin
+            if(id_bronze >= 0 && id_copper >= 0 && id_tin >= 0 &&
+               a->inv[id_copper] >= 1 && a->inv[id_tin] >= 1)
             {
-                a->inv[ITEM_COPPER] -= 1;
-                a->inv[ITEM_TIN] -= 1;
-                a->inv[ITEM_WOOD] -= 2;
-                a->inv[ITEM_BRONZE] += 1;
+                a->inv[id_copper] -= 1;
+                a->inv[id_tin] -= 1;
+                a->inv[id_bronze] += 1;
                 a->fatigue += 0.02f;
             }
-            break;
-        case ITEM_TOOL:
+        }
+        else if(strcmp(name,"tool")==0)
+        {
             // 1 tool: 1 bronze
-            if(a->inv[ITEM_BRONZE] >= 1)
+            if(id_tool >= 0 && id_bronze >= 0 && a->inv[id_bronze] >= 1)
             {
-                a->inv[ITEM_BRONZE] -= 1;
-                a->inv[ITEM_TOOL] += 1;
+                a->inv[id_bronze] -= 1;
+                a->inv[id_tool] += 1;
                 a->fatigue += 0.02f;
             }
-            break;
-        default:
-            // allow "craft wood" etc? no.
-            break;
+        }
+        else
+        {
+            // Unknown craftable item; no-op (kept safe for custom DSL extensions)
         }
     }
 }
@@ -205,38 +223,43 @@ static void trade(Sim* s, Agent* a)
     Settlement* st = &s->settlements[hh->settlement_id];
 
     // Convert surplus into deficits using a small set of barters.
-    // If you want richer markets, extend this to an order book / prices.
-    ItemKind wants[4] = { ITEM_GRAIN, ITEM_FISH, ITEM_TOOL, ITEM_POT };
+    // Kinds are dynamic, so we resolve ids by name at runtime.
+    int want_ids[4];
+    want_ids[0] = kind_table_find(&s->item_kinds, "grain");
+    want_ids[1] = kind_table_find(&s->item_kinds, "fish");
+    want_ids[2] = kind_table_find(&s->item_kinds, "tool");
+    want_ids[3] = kind_table_find(&s->item_kinds, "pot");
 
     for(int wi=0; wi<4; wi++)
     {
-        ItemKind want = wants[wi];
+        int want = want_ids[wi];
+        if(want < 0) continue;
         if(a->inv[want] >= 3) continue; // not lacking
 
         // find something to offer with high local value & surplus
-        ItemKind offer = ITEM_FISH;
+        int offer_default = kind_table_find(&s->item_kinds, "fish");
+        int offer = (offer_default >= 0) ? offer_default : 0;
+
         int bestScore = -999999;
-        for(int it=0; it<ITEM_MAX; it++)
+        for(int it=0; it<s->item_kind_count; it++)
         {
-            if(it==(int)want) continue;
-            if(a->inv[it] < 6) continue;
-            int score = (int)(st->val[it] * 100.0f);
+            if(it == want) continue;
+            if(a->inv[it] <= 2) continue; // not enough surplus
+            // score = value * surplus
+            int score = (int)(st->val[it] * 100.0f) + a->inv[it] * 10;
             if(score > bestScore)
             {
                 bestScore = score;
-                offer = (ItemKind)it;
+                offer = it;
             }
         }
 
-        if(a->inv[offer] < 6) continue;
+        if(bestScore <= -999990) continue;
 
-        // trade 2 offer for 1 want if offer is valued >= want at this settlement
-        if(st->val[offer] >= st->val[want])
-        {
-            a->inv[offer] -= 2;
-            a->inv[want] += 1;
-            a->fatigue += 0.01f;
-        }
+        // execute barter: give 1 offer for 1 want (toy model)
+        a->inv[offer] -= 1;
+        a->inv[want]  += 1;
+        a->fatigue += 0.005f;
     }
 }
 
@@ -325,37 +348,20 @@ static void exec_task(Sim* s, Agent* a, const TaskDef* t)
             move_to_tag(s, a, (uint8_t)t->ops[i].arg_j, 12);
             break;
         case OP_GATHER:
-        {
-            ResourceKind rk = (ResourceKind)t->ops[i].arg_j;
-            int got = gather(s, a, rk, t->ops[i].arg_i);
-            // map resources -> items
-            switch(rk)
-            {
-            case RES_FISH:
-                a->inv[ITEM_FISH]   += got;
-                break;
-            case RES_GRAIN:
-                a->inv[ITEM_GRAIN]  += got;
-                break;
-            case RES_WOOD:
-                a->inv[ITEM_WOOD]   += got;
-                break;
-            case RES_CLAY:
-                a->inv[ITEM_CLAY]   += got;
-                break;
-            case RES_COPPER:
-                a->inv[ITEM_COPPER] += got;
-                break;
-            case RES_TIN:
-                a->inv[ITEM_TIN]    += got;
-                break;
-            default:
-                break;
-            }
-        }
-        break;
+{
+    int rk_id = t->ops[i].arg_j;
+    int got = gather(s, a, rk_id, t->ops[i].arg_i);
+
+    // By convention, "gather <resource>" deposits into an item with the same name,
+    // if that item exists in the DSL-declared item kinds.
+    const char* rname = kind_table_name(&s->world.resources, rk_id);
+    int item_id = kind_table_find(&s->item_kinds, rname);
+    if(item_id >= 0)
+        a->inv[item_id] += got;
+}
+break;
         case OP_CRAFT:
-            craft_item(a, (ItemKind)t->ops[i].arg_j, t->ops[i].arg_i);
+            craft_item(s, a, t->ops[i].arg_j, t->ops[i].arg_i);
             break;
         case OP_TRADE:
             trade(s, a);
@@ -394,23 +400,28 @@ static void role_switching(Sim* s)
     if(s->switch_every_days == 0) return;
     if((s->day % s->switch_every_days) != 0) return;
 
-    long totals[ITEM_MAX]= {0};
+    long* totals = (long*)calloc((size_t)s->item_kind_count, sizeof(long));
+    BRZ_ASSERT(totals != NULL);
     int alive=0;
     for(int i=0; i<s->agent_count; i++)
     {
         if(s->agents[i].health <= 0.0f) continue;
         alive++;
-        for(int it=0; it<ITEM_MAX; it++) totals[it] += s->agents[i].inv[it];
+        for(int it=0; it<s->item_kind_count; it++) totals[it] += s->agents[i].inv[it];
     }
     if(alive <= 0) return;
 
     // scarcity: per-capita target
-    float pc_grain = (float)totals[ITEM_GRAIN] / (float)alive;
-    float pc_fish  = (float)totals[ITEM_FISH]  / (float)alive;
-    float pc_tool  = (float)totals[ITEM_TOOL]  / (float)alive;
-    float pc_pot   = (float)totals[ITEM_POT]   / (float)alive;
+    int id_grain = kind_table_find(&s->item_kinds, "grain");
+int id_fish  = kind_table_find(&s->item_kinds, "fish");
+int id_tool  = kind_table_find(&s->item_kinds, "tool");
+int id_pot   = kind_table_find(&s->item_kinds, "pot");
 
-    const int farmer_id = voc_find(&s->voc_table, "farmer");
+float pc_grain = (id_grain>=0) ? ((float)totals[id_grain] / (float)alive) : 0.0f;
+float pc_fish  = (id_fish>=0)  ? ((float)totals[id_fish]  / (float)alive) : 0.0f;
+float pc_tool  = (id_tool>=0)  ? ((float)totals[id_tool]  / (float)alive) : 0.0f;
+float pc_pot   = (id_pot>=0)   ? ((float)totals[id_pot]   / (float)alive) : 0.0f;
+const int farmer_id = voc_find(&s->voc_table, "farmer");
     const int fisher_id = voc_find(&s->voc_table, "fisher");
     const int smith_id  = voc_find(&s->voc_table, "smith");
     const int potter_id = voc_find(&s->voc_table, "potter");
@@ -452,22 +463,50 @@ static void role_switching(Sim* s)
         fprintf(stdout, "Day %u: role switching nudged %d adults into vocation '%s'\n",
                 s->day, switched, v ? v->name : "?");
     }
+
 }
 
-void sim_init(Sim* s, const WorldSpec* spec, uint32_t cache_max, int agent_count, const VocationTable* vt)
+
+void sim_init(Sim* s, ParsedConfig* cfg)
 {
+    BRZ_ASSERT(s != NULL && cfg != NULL);
     memset(s,0,sizeof(*s));
-    s->world = *spec;
+
+    // Move (steal) dynamic kinds + vocations out of the parsed config so there
+    // is a single owner and we avoid double-free.
+    s->world.seed = cfg->seed;
+    s->world.settlement_count = cfg->settlement_count;
+
+    s->world.resources = cfg->resources;
+    kind_table_init(&cfg->resources); // cfg now empty; ownership moved
+
+    s->world.res_model.renew_per_day = cfg->renew_per_day;
+    cfg->renew_per_day = NULL;
+
+    s->item_kinds = cfg->items;
+    kind_table_init(&cfg->items);
+
+    s->item_kind_count = s->item_kinds.count;
+
+    s->voc_table = cfg->voc_table;
+    memset(&cfg->voc_table, 0, sizeof(cfg->voc_table));
+
     worldgen_init(&s->gen, s->world.seed);
 
-    s->voc_table = *vt;
+    // Build cache
+    uint32_t cache_max = (cfg->cache_max > 16) ? cfg->cache_max : 16;
+    cache_init(&s->cache, 4096, cache_max, &s->gen, &s->world);
 
+    // Settlements
     s->settlement_count = (s->world.settlement_count > 1) ? s->world.settlement_count : 1;
     s->settlements = (Settlement*)calloc((size_t)s->settlement_count, sizeof(Settlement));
     BRZ_ASSERT(s->settlements != NULL);
 
     for(int i=0; i<s->settlement_count; i++)
     {
+        s->settlements[i].val = (float*)calloc((size_t)s->item_kind_count, sizeof(float));
+        BRZ_ASSERT(s->settlements[i].val != NULL);
+
         uint32_t h1 = brz_hash_u32((uint32_t)i, s->world.seed, 0x5E77A11Au);
         uint32_t h2 = brz_hash_u32((uint32_t)i, s->world.seed, 0x5E77B22Bu);
         int32_t x = 500 + (int32_t)(h1 % (WORLD_CELLS_X-1000));
@@ -475,94 +514,90 @@ void sim_init(Sim* s, const WorldSpec* spec, uint32_t cache_max, int agent_count
         s->settlements[i].x = x;
         s->settlements[i].y = y;
 
-        // Set item values with per-settlement variation (simple market differences)
-        for(int it=0; it<ITEM_MAX; it++) s->settlements[i].val[it] = 1.0f;
-
-        float r = (float)((brz_hash_u32((uint32_t)i, s->world.seed, 0xC0DEu) % 100u) / 100.0);
-        s->settlements[i].val[ITEM_FISH]  = 1.0f + 0.5f*r;
-        s->settlements[i].val[ITEM_GRAIN] = 1.0f + 0.5f*(1.0f-r);
-        s->settlements[i].val[ITEM_POT]   = 1.0f + 0.4f*r;
-        s->settlements[i].val[ITEM_TOOL]  = 1.2f + 0.6f*r;
-        s->settlements[i].val[ITEM_BRONZE]= 1.3f + 0.7f*r;
+        // Assign a simple value weight per item with per-settlement variation.
+        for(int it=0; it<s->item_kind_count; it++)
+        {
+            uint32_t hh = brz_hash_u32((uint32_t)it, (uint32_t)i, s->world.seed ^ 0xBEEFBEEFu);
+            float base = 0.5f + (float)(hh % 1000) / 1000.0f;
+            s->settlements[i].val[it] = base;
+        }
     }
 
-    s->agent_count = (agent_count > 1) ? agent_count : 1;
-    s->household_count = (s->agent_count + 4) / 5;
+    // Households
+    s->household_count = cfg->agent_count / 6;
+    if(s->household_count < 1) s->household_count = 1;
     s->households = (Household*)calloc((size_t)s->household_count, sizeof(Household));
     BRZ_ASSERT(s->households != NULL);
-
     for(int i=0; i<s->household_count; i++)
     {
         s->households[i].id = i;
-        s->households[i].settlement_id = i % s->settlement_count;
+        s->households[i].settlement_id = (i % s->settlement_count);
         s->households[i].parent_id = -1;
     }
 
+    // Agents
+    s->agent_count = (cfg->agent_count > 1) ? cfg->agent_count : 1;
     s->agents = (Agent*)calloc((size_t)s->agent_count, sizeof(Agent));
     BRZ_ASSERT(s->agents != NULL);
-
-    // assign vocations by name fallback
-    int default_voc = (vt->vocation_count > 0) ? 0 : -1;
-    int farmer_id = voc_find(vt, "farmer");
-    int fisher_id = voc_find(vt, "fisher");
-    int potter_id = voc_find(vt, "potter");
-    int smith_id  = voc_find(vt, "smith");
-    int trader_id = voc_find(vt, "trader");
 
     for(int i=0; i<s->agent_count; i++)
     {
         Agent* a = &s->agents[i];
-        pick_spawn(&s->gen, i, &a->x, &a->y);
-        a->age = 8 + (int)(brz_hash_u32((uint32_t)i, s->world.seed, 0xA9Eu) % 35u);
-        a->household_id = i % s->household_count;
+        memset(a,0,sizeof(*a));
+        a->inv = (int*)calloc((size_t)s->item_kind_count, sizeof(int));
+        BRZ_ASSERT(a->inv != NULL);
 
-        // distribution: farmers most common
-        uint32_t rr = brz_hash_u32((uint32_t)i, s->world.seed, 0xB00Cu) % 100u;
-        int vid = default_voc;
-        if(rr < 45 && farmer_id>=0) vid = farmer_id;
-        else if(rr < 70 && fisher_id>=0) vid = fisher_id;
-        else if(rr < 85 && potter_id>=0) vid = potter_id;
-        else if(rr < 93 && trader_id>=0) vid = trader_id;
-        else if(smith_id>=0) vid = smith_id;
-        a->vocation_id = vid;
+        int hid = (i % s->household_count);
+        a->household_id = hid;
 
-        a->inv[ITEM_FISH] = 1;
-        a->inv[ITEM_GRAIN] = 2;
-        a->inv[ITEM_WOOD] = 1;
+        Household* hh = &s->households[hid];        // parent: assign first adult in household
+        if(hh->parent_id < 0 && (i % 6)==0) hh->parent_id = i;
 
-        a->hunger = 0.2f;
-        a->fatigue = 0.1f;
+        Settlement* st = &s->settlements[hh->settlement_id];
+
+        uint32_t h1 = brz_hash_u32((uint32_t)i, s->world.seed, 0xC0FFEE11u);
+        uint32_t h2 = brz_hash_u32((uint32_t)i, s->world.seed, 0xC0FFEE22u);
+
+        a->x = st->x + (int32_t)(h1 % 200) - 100;
+        a->y = st->y + (int32_t)(h2 % 200) - 100;
+        a->age = (int)(h1 % 45);
+
+        a->vocation_id = (s->voc_table.vocation_count>0) ? (i % s->voc_table.vocation_count) : 0;
+
+        a->hunger = 0.1f + 0.2f * ((h2 % 1000) / 1000.0f);
+        a->fatigue = 0.1f + 0.2f * ((h1 % 1000) / 1000.0f);
         a->health = 1.0f;
     }
 
-    // choose household parent as oldest member
-    for(int h=0; h<s->household_count; h++)
-    {
-        int parent=-1, bestAge=-1;
-        for(int i=0; i<s->agent_count; i++)
-        {
-            if(s->agents[i].household_id != h) continue;
-            if(s->agents[i].age > bestAge)
-            {
-                bestAge = s->agents[i].age;
-                parent = i;
-            }
-        }
-        s->households[h].parent_id = parent;
-    }
-
-    cache_init(&s->cache, 8192, cache_max, &s->gen, &s->world);
-
     s->day = 0;
-    s->switch_every_days = 30;
+    s->switch_every_days = 60;
 }
 
 void sim_destroy(Sim* s)
 {
-    cache_destroy(&s->cache);
+    if(!s) return;
+
+    for(int i=0; i<s->agent_count; i++)
+        free(s->agents[i].inv);
     free(s->agents);
-    free(s->households);
+    s->agents = NULL;
+
+    for(int i=0; i<s->settlement_count; i++)
+        free(s->settlements[i].val);
     free(s->settlements);
+    s->settlements = NULL;
+
+    free(s->households);
+    s->households = NULL;
+
+    cache_destroy(&s->cache);
+
+    voc_table_destroy(&s->voc_table);
+    kind_table_destroy(&s->item_kinds);
+    kind_table_destroy(&s->world.resources);
+    free(s->world.res_model.renew_per_day);
+    s->world.res_model.renew_per_day = NULL;
+
     memset(s,0,sizeof(*s));
 }
 
@@ -588,7 +623,7 @@ void sim_step(Sim* s)
         a->fatigue -= 0.08f;
         if(a->fatigue < 0.0f) a->fatigue = 0.0f;
 
-        eat(a);
+        eat(s,a);
         apprenticeship(s,a);
 
         // starvation damage
@@ -627,7 +662,8 @@ void sim_step(Sim* s)
 
 void sim_report(const Sim* s)
 {
-    long inv[ITEM_MAX]= {0};
+    long* inv = (long*)calloc((size_t)s->item_kind_count, sizeof(long));
+    BRZ_ASSERT(inv != NULL);
     int voc_counts[MAX_VOCATIONS]= {0};
     int alive=0;
 
@@ -636,17 +672,41 @@ void sim_report(const Sim* s)
         const Agent* a = &s->agents[i];
         if(a->health <= 0.0f) continue;
         alive++;
-        for(int it=0; it<ITEM_MAX; it++) inv[it] += a->inv[it];
+        for(int it=0; it<s->item_kind_count; it++) inv[it] += a->inv[it];
         if(a->vocation_id >=0 && a->vocation_id < s->voc_table.vocation_count)
         {
             voc_counts[a->vocation_id]++;
         }
     }
 
-    printf("Day %u season=%s alive=%d cache_chunks=%u | fish=%ld grain=%ld wood=%ld clay=%ld cu=%ld tin=%ld bronze=%ld tool=%ld pot=%ld\n",
-           s->day, world_season_name(world_season_kind(s->day)), alive, s->cache.live_chunks,
-           inv[ITEM_FISH], inv[ITEM_GRAIN], inv[ITEM_WOOD], inv[ITEM_CLAY],
-           inv[ITEM_COPPER], inv[ITEM_TIN], inv[ITEM_BRONZE], inv[ITEM_TOOL], inv[ITEM_POT]);
+    printf("Day %u season=%s alive=%d cache_chunks=%u\n",
+       s->day, world_season_name(world_season_kind(s->day)), alive, s->cache.live_chunks);
+
+// Selected per-capita inventory totals (only if the kind exists in the DSL)
+{
+    int id_fish   = kind_table_find(&s->item_kinds, "fish");
+    int id_grain  = kind_table_find(&s->item_kinds, "grain");
+    int id_wood   = kind_table_find(&s->item_kinds, "wood");
+    int id_clay   = kind_table_find(&s->item_kinds, "clay");
+    int id_copper = kind_table_find(&s->item_kinds, "copper");
+    int id_tin    = kind_table_find(&s->item_kinds, "tin");
+    int id_bronze = kind_table_find(&s->item_kinds, "bronze");
+    int id_tool   = kind_table_find(&s->item_kinds, "tool");
+    int id_pot    = kind_table_find(&s->item_kinds, "pot");
+
+    long c_fish   = (id_fish>=0)   ? inv[id_fish]   : 0;
+    long c_grain  = (id_grain>=0)  ? inv[id_grain]  : 0;
+    long c_wood   = (id_wood>=0)   ? inv[id_wood]   : 0;
+    long c_clay   = (id_clay>=0)   ? inv[id_clay]   : 0;
+    long c_copper = (id_copper>=0) ? inv[id_copper] : 0;
+    long c_tin    = (id_tin>=0)    ? inv[id_tin]    : 0;
+    long c_bronze = (id_bronze>=0) ? inv[id_bronze] : 0;
+    long c_tool   = (id_tool>=0)   ? inv[id_tool]   : 0;
+    long c_pot    = (id_pot>=0)    ? inv[id_pot]    : 0;
+
+    printf("  inv_totals: fish=%ld grain=%ld wood=%ld clay=%ld copper=%ld tin=%ld bronze=%ld tool=%ld pot=%ld\n",
+           c_fish, c_grain, c_wood, c_clay, c_copper, c_tin, c_bronze, c_tool, c_pot);
+}
 
     printf("  vocations:");
     for(int v=0; v<s->voc_table.vocation_count; v++)
@@ -654,6 +714,7 @@ void sim_report(const Sim* s)
         printf(" %s=%d", s->voc_table.vocations[v].name, voc_counts[v]);
     }
     printf("\n");
+    free(inv);
 }
 
 void sim_write_snapshot_json(const Sim* s, const char* path)
@@ -661,7 +722,8 @@ void sim_write_snapshot_json(const Sim* s, const char* path)
     FILE* f = fopen(path,"wb");
     if(!f) return;
 
-    long inv[ITEM_MAX]= {0};
+    long* inv = (long*)calloc((size_t)s->item_kind_count, sizeof(long));
+    BRZ_ASSERT(inv != NULL);
     int alive=0;
     int voc_counts[MAX_VOCATIONS]= {0};
 
@@ -670,7 +732,7 @@ void sim_write_snapshot_json(const Sim* s, const char* path)
         const Agent* a = &s->agents[i];
         if(a->health <= 0.0f) continue;
         alive++;
-        for(int it=0; it<ITEM_MAX; it++) inv[it] += a->inv[it];
+        for(int it=0; it<s->item_kind_count; it++) inv[it] += a->inv[it];
         if(a->vocation_id >=0 && a->vocation_id < s->voc_table.vocation_count) voc_counts[a->vocation_id]++;
     }
 
@@ -680,17 +742,14 @@ void sim_write_snapshot_json(const Sim* s, const char* path)
     fprintf(f, "  \"alive\": %d,\n", alive);
     fprintf(f, "  \"cache_chunks\": %u,\n", s->cache.live_chunks);
 
-    fprintf(f, "  \"inventory\": {\n");
-    fprintf(f, "    \"fish\": %ld,\n", inv[ITEM_FISH]);
-    fprintf(f, "    \"grain\": %ld,\n", inv[ITEM_GRAIN]);
-    fprintf(f, "    \"wood\": %ld,\n", inv[ITEM_WOOD]);
-    fprintf(f, "    \"clay\": %ld,\n", inv[ITEM_CLAY]);
-    fprintf(f, "    \"copper\": %ld,\n", inv[ITEM_COPPER]);
-    fprintf(f, "    \"tin\": %ld,\n", inv[ITEM_TIN]);
-    fprintf(f, "    \"bronze\": %ld,\n", inv[ITEM_BRONZE]);
-    fprintf(f, "    \"tool\": %ld,\n", inv[ITEM_TOOL]);
-    fprintf(f, "    \"pot\": %ld\n", inv[ITEM_POT]);
-    fprintf(f, "  },\n");
+    
+fprintf(f, "  \"inventory\": {\n");
+for(int it=0; it<s->item_kind_count; it++)
+{
+    const char* nm = kind_table_name(&s->item_kinds, it);
+    fprintf(f, "    \"%s\": %ld%s\n", nm, inv[it], (it==(s->item_kind_count-1) ? "" : ","));
+}
+fprintf(f, "  },\n");
 
     fprintf(f, "  \"vocations\": {\n");
     for(int v=0; v<s->voc_table.vocation_count; v++)
@@ -701,6 +760,7 @@ void sim_write_snapshot_json(const Sim* s, const char* path)
     fprintf(f, "  }\n");
 
     fprintf(f, "}\n");
+    free(inv);
     fclose(f);
 }
 

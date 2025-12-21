@@ -79,44 +79,44 @@ uint8_t world_cell_tags(WorldGen* g, int32_t x, int32_t y, int settlement_count)
     return tags;
 }
 
-uint8_t world_cell_res0(WorldGen* g, int32_t x, int32_t y, ResourceKind rk, uint8_t tags)
+uint8_t world_cell_res0(WorldGen* g, const WorldSpec* spec, int32_t x, int32_t y, ResourceKindId rk, uint8_t tags)
 {
+    (void)spec;
     uint8_t base = noise01(g,x,y,0x9999DDDDu);
-    switch(rk)
-    {
-    case RES_FISH:
-        return (tags & TAG_COAST)  ? brz_clamp_u8(120 + base/2) : 0;
-    case RES_GRAIN:
-        return (tags & TAG_FIELD)  ? brz_clamp_u8(80  + base/3) : 0;
-    case RES_WOOD:
-        return (tags & TAG_FOREST) ? brz_clamp_u8(90  + base/3) : 0;
-    case RES_CLAY:
-        return ((tags & TAG_RIVER) || (tags & TAG_MARSH)) ? brz_clamp_u8(60 + base/4) : 0;
-    case RES_COPPER:
-        return (tags & TAG_HILL)   ? (base > 240 ? 40 : 5) : 0;
-    case RES_TIN:
-        return (tags & TAG_HILL)   ? (base > 250 ? 25 : 0) : 0;
+    const char* name = kind_table_name(&spec->resources, rk);
 
-    case RES_FIRE:
-        return (tags & TAG_SETTLE) ? brz_clamp_u8(180 + base/4) : 0;
-    case RES_PLANT_FIBER:
-        return ((tags & TAG_MARSH) || (tags & TAG_FIELD)) ? brz_clamp_u8(70 + base/3) : 0;
-    case RES_CATTLE:
+    if(strcmp(name,"fish")==0)
+        return (tags & TAG_COAST)  ? brz_clamp_u8(120 + base/2) : 0;
+    if(strcmp(name,"grain")==0)
+        return (tags & TAG_FIELD)  ? brz_clamp_u8(80  + base/3) : 0;
+    if(strcmp(name,"wood")==0)
+        return (tags & TAG_FOREST) ? brz_clamp_u8(90  + base/3) : 0;
+    if(strcmp(name,"clay")==0)
+        return ((tags & TAG_RIVER) || (tags & TAG_MARSH)) ? brz_clamp_u8(60 + base/4) : 0;
+    if(strcmp(name,"copper")==0)
+        return (tags & TAG_HILL)   ? (base > 240 ? 40 : 5) : 0;
+    if(strcmp(name,"tin")==0)
+        return (tags & TAG_HILL)   ? (base > 245 ? 30 : 3) : 0;
+
+    if(strcmp(name,"fire")==0)
+        return (tags & TAG_FOREST) ? brz_clamp_u8(40 + base/5) : 0;
+    if(strcmp(name,"plant_fiber")==0)
+        return (tags & TAG_FIELD) ? brz_clamp_u8(45 + base/5) : 0;
+    if(strcmp(name,"cattle")==0)
         return (tags & TAG_FIELD) ? brz_clamp_u8(40 + base/4) : 0;
-    case RES_SHEEP:
+    if(strcmp(name,"sheep")==0)
         return (tags & TAG_FIELD) ? brz_clamp_u8(35 + base/4) : 0;
-    case RES_PIG:
+    if(strcmp(name,"pig")==0)
         return (tags & TAG_FIELD) ? brz_clamp_u8(30 + base/4) : 0;
-    case RES_CHARCOAL:
+    if(strcmp(name,"charcoal")==0)
         return (tags & TAG_FOREST) ? brz_clamp_u8(25 + base/5) : 0;
-    case RES_RELIGION:
+    if(strcmp(name,"religion")==0)
         return (tags & TAG_SETTLE) ? brz_clamp_u8(60 + base/5) : 0;
-    case RES_NATIONALISM:
+    if(strcmp(name,"nationalism")==0)
         return (tags & TAG_SETTLE) ? brz_clamp_u8(20 + base/8) : 0;
 
-    default:
-        return 0;
-    }
+    // Unknown resource kind: treat as not naturally occurring.
+    return 0;
 }
 
 SeasonKind world_season_kind(uint32_t day)

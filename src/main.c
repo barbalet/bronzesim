@@ -53,42 +53,10 @@ int main(int argc, char** argv)
         return 2;
     }
 
-    WorldSpec spec;
-    spec.seed = pcfg.seed;
-    spec.settlement_count = pcfg.settlement_count;
+        // World + kinds are now fully defined by the DSL and moved into the Sim during sim_init().
 
-    spec.res_model.renew_per_day[RES_FISH]   = pcfg.fish_renew;
-    spec.res_model.renew_per_day[RES_GRAIN]  = pcfg.grain_renew;
-    spec.res_model.renew_per_day[RES_WOOD]   = pcfg.wood_renew;
-    spec.res_model.renew_per_day[RES_CLAY]   = pcfg.clay_renew;
-    spec.res_model.renew_per_day[RES_COPPER] = pcfg.copper_renew;
-    spec.res_model.renew_per_day[RES_TIN]    = pcfg.tin_renew;
-
-    spec.res_model.renew_per_day[RES_FIRE]        = pcfg.fire_renew;
-    spec.res_model.renew_per_day[RES_PLANT_FIBER] = pcfg.plant_fiber_renew;
-    spec.res_model.renew_per_day[RES_CATTLE]      = pcfg.cattle_renew;
-    spec.res_model.renew_per_day[RES_SHEEP]       = pcfg.sheep_renew;
-    spec.res_model.renew_per_day[RES_PIG]         = pcfg.pig_renew;
-    spec.res_model.renew_per_day[RES_CHARCOAL]    = pcfg.charcoal_renew;
-    spec.res_model.renew_per_day[RES_RELIGION]    = pcfg.religion_renew;
-    spec.res_model.renew_per_day[RES_NATIONALISM] = pcfg.nationalism_renew;
-    printf("BRONZESIM world: 30mi x 30mi at 3ft => %d x %d cells (~%.2fB)\n",
-           WORLD_CELLS_X, WORLD_CELLS_Y, (double)WORLD_CELLS_X*(double)WORLD_CELLS_Y/1e9);
-    printf("Config: seed=%u days=%d agents=%d settlements=%d cache_max=%u snapshot_every=%d map_every=%d\n",
-           pcfg.seed, pcfg.days, pcfg.agent_count, pcfg.settlement_count, pcfg.cache_max,
-           pcfg.snapshot_every_days, pcfg.map_every_days);
-
-    printf("Loaded vocations: %d\n", pcfg.voc_table.vocation_count);
-    for(int i=0; i<pcfg.voc_table.vocation_count; i++)
-    {
-        printf("  %s (tasks=%d rules=%d)\n",
-               pcfg.voc_table.vocations[i].name,
-               pcfg.voc_table.vocations[i].task_count,
-               pcfg.voc_table.vocations[i].rule_count);
-    }
-
-    Sim sim;
-    sim_init(&sim, &spec, pcfg.cache_max, pcfg.agent_count, &pcfg.voc_table);
+Sim sim;
+    sim_init(&sim, &pcfg);
 
     for(int d=0; d<pcfg.days; d++)
     {

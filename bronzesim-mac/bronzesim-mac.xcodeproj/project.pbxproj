@@ -29,6 +29,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		4A12FD102EF850A70037E983 /* brz_kinds.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_kinds.h; path = ../src/brz_kinds.h; sourceTree = SOURCE_ROOT; };
 		4AB8A2FC2EEF812800ED2BBB /* bronzesim-mac */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "bronzesim-mac"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4AB8A3062EEF814C00ED2BBB /* brz_cache.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_cache.h; path = ../src/brz_cache.h; sourceTree = SOURCE_ROOT; };
 		4AB8A3072EEF814C00ED2BBB /* brz_cache.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_cache.c; path = ../src/brz_cache.c; sourceTree = SOURCE_ROOT; };
@@ -59,6 +60,7 @@
 		4AB8A2F32EEF812800ED2BBB = {
 			isa = PBXGroup;
 			children = (
+				4A12FD102EF850A70037E983 /* brz_kinds.h */,
 				4AB8A3062EEF814C00ED2BBB /* brz_cache.h */,
 				4AB8A3072EEF814C00ED2BBB /* brz_cache.c */,
 				4AB8A3082EEF814C00ED2BBB /* brz_dsl.h */,

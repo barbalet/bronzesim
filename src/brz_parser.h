@@ -29,24 +29,13 @@ typedef struct
     int agent_count;
     int settlement_count;
     uint32_t cache_max;
+    // dynamic kinds (defined in the DSL)
+    KindTable resources;
+    KindTable items;
 
-    // resource renew per day (0..1 scale; applied to loaded chunks)
-    float fish_renew;
-    float grain_renew;
-    float wood_renew;
-    float clay_renew;
-    float copper_renew;
-    float tin_renew;
+    // resource renew per day (0..1), aligned to resources.names
+    float* renew_per_day; // length resources.count
 
-
-    float fire_renew;
-    float plant_fiber_renew;
-    float cattle_renew;
-    float sheep_renew;
-    float pig_renew;
-    float charcoal_renew;
-    float religion_renew;
-    float nationalism_renew;
     // scriptable vocations
     VocationTable voc_table;
 
@@ -56,3 +45,4 @@ typedef struct
 } ParsedConfig;
 
 bool brz_parse_file(const char* path, ParsedConfig* out_cfg);
+void brz_parsed_config_destroy(ParsedConfig* cfg);

@@ -32,23 +32,10 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include "brz_kinds.h"
 #include "brz_world.h"
 
 // Inventory items (includes crafted goods)
-typedef enum
-{
-    ITEM_FISH=0,
-    ITEM_GRAIN,
-    ITEM_WOOD,
-    ITEM_CLAY,
-    ITEM_COPPER,
-    ITEM_TIN,
-    ITEM_BRONZE,
-    ITEM_TOOL,
-    ITEM_POT,
-    ITEM_MAX
-} ItemKind;
-
 typedef enum { CMP_ANY=0, CMP_GT, CMP_LT, CMP_GE, CMP_LE } CmpKind;
 
 typedef struct
@@ -64,7 +51,7 @@ typedef struct
 
     // Up to 4 inventory clauses: inv <item> <cmp> <value>
     int inv_count;
-    ItemKind inv_item[4];
+    int inv_item[4]; // item kind id (index into DSL-defined item kinds)
     CmpKind inv_cmp[4];
     int inv_value[4];
 
@@ -75,8 +62,8 @@ typedef struct
 typedef enum
 {
     OP_MOVE_TO=0,      // arg_j = tag bit (TAG_*)
-    OP_GATHER,         // arg_j = ResourceKind, arg_i = amount
-    OP_CRAFT,          // arg_j = ItemKind, arg_i = amount
+    OP_GATHER,         // arg_j = resource kind id, arg_i = amount
+    OP_CRAFT,          // arg_j = item kind id, arg_i = amount
     OP_TRADE,          // no args
     OP_REST,           // no args
     OP_ROAM            // arg_i = steps
@@ -138,9 +125,9 @@ VocationDef* voc_table_add(VocationTable* vt, const char* name);
 void vocation_add_task(VocationDef* v, const TaskDef* t);
 void vocation_add_rule(VocationDef* v, const RuleDef* r);
 
-// Helpers for mapping DSL identifiers to enums/bits
-bool dsl_parse_resource(const char* s, ResourceKind* out);
-bool dsl_parse_item(const char* s, ItemKind* out);
+// Helpers for mapping DSL identifiers to ids/bits
+int dsl_parse_resource_id(const KindTable* resources, const char* s);
+int dsl_parse_item_id(const KindTable* items, const char* s);
 bool dsl_parse_tagbit(const char* s, int* out_tagbit);
 
 // Find vocation/task by name
