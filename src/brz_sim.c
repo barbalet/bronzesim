@@ -711,7 +711,10 @@ void sim_report(const Sim* s)
     printf("  vocations:");
     for(int v=0; v<s->voc_table.vocation_count; v++)
     {
-        printf(" %s=%d", s->voc_table.vocations[v].name, voc_counts[v]);
+        if(voc_counts[v])
+        {
+            printf(" %s=%d", s->voc_table.vocations[v].name, voc_counts[v]);
+        }
     }
     printf("\n");
     free(inv);
