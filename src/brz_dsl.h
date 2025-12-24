@@ -1,137 +1,92 @@
-/*
- * BRONZESIM — brz_dsl.h
- *
- * DSL = Domain-Specific Language.
- *
- * This header defines the in-memory representation of the BRONZESIM DSL.
- * The DSL is the human-authored text format used in example.bronze.
- *
- * Responsibilities of this file:
- *  - Define C structs that represent parsed DSL concepts:
- *      - Vocations (occupations)
- *      - Tasks
- *      - Rules
- *      - Primitive operations (move_to, gather, craft, trade, rest, roam)
- *  - Provide enums and constants that map DSL keywords to runtime meanings
- *  - Establish hard limits (max tasks, rules, operations) for memory safety
- *
- * What this file does NOT do:
- *  - It does NOT parse text
- *  - It does NOT execute tasks
- *  - It does NOT contain simulation logic
- *
- * Think of this file as the “schema” or “ABI” of the DSL:
- * it defines the shape of the data that flows from text → parser → simulator.
- *
- * Design goals:
- *  - Fixed-size, heap-safe structures (no unbounded allocation)
- *  - Fast lookup during simulation
- *  - Clear separation between content (DSL) and behavior (engine)
- */
+#ifndef BRZ_DSL_H
+#define BRZ_DSL_H
 
-#pragma once
-#include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include "brz_vec.h"
 #include "brz_kinds.h"
-#include "brz_world.h"
 
-// Inventory items (includes crafted goods)
-typedef enum { CMP_ANY=0, CMP_GT, CMP_LT, CMP_GE, CMP_LE } CmpKind;
+/* BRONZESIM DSL structures.
+   Designed to parse very large .bronze files without fixed MAX limits. */
 
-typedef struct
-{
-    // Conditions are ANDed together.
-    bool has_hunger;
-    float hunger_threshold;  // hunger > threshold
-
-    bool has_fatigue;
-    float fatigue_threshold; // fatigue < threshold
-
-    SeasonKind season_eq;    // == season; SEASON_ANY means ignore
-
-    // Up to 4 inventory clauses: inv <item> <cmp> <value>
-    int inv_count;
-    int inv_item[4]; // item kind id (index into DSL-defined item kinds)
-    CmpKind inv_cmp[4];
-    int inv_value[4];
-
-    bool has_prob;
-    float prob;              // 0..1
-} Condition;
-
-typedef enum
-{
-    OP_MOVE_TO=0,      // arg_j = tag bit (TAG_*)
-    OP_GATHER,         // arg_j = resource kind id, arg_i = amount
-    OP_CRAFT,          // arg_j = item kind id, arg_i = amount
-    OP_TRADE,          // no args
-    OP_REST,           // no args
-    OP_ROAM            // arg_i = steps
-} OpKind;
-
-typedef struct
-{
-    OpKind kind;
-    int arg_i;
-    int arg_j;
+typedef struct {
+    char* op;       /* e.g. "move_to", "gather", "craft", "rest", "roam", "trade" */
+    char* a0;       /* first word arg */
+    char* a1;       /* second word arg */
+    char* a2;       /* third word arg */
+    double n0;      /* first numeric arg */
+    bool has_n0;
+    int line;
 } OpDef;
 
-#define MAX_OPS_PER_TASK  16
-#define MAX_TASKS_PER_VOC 64
-#define MAX_RULES_PER_VOC 64
-#define MAX_VOCATIONS     128
+typedef enum {
+    ST_OP = 0,
+    ST_CHANCE,
+    ST_WHEN
+} StmtKind;
 
-typedef struct
-{
-    char name[64];
-    int op_count;
-    OpDef ops[MAX_OPS_PER_TASK];
+typedef struct StmtDef StmtDef;
+
+struct StmtDef {
+    StmtKind kind;
+    int line;
+    union {
+        OpDef op;
+        struct { double chance_pct; BrzVec body; } chance;    /* percent 0..100 */
+        struct { char* when_expr; BrzVec body; } when_stmt;   /* expr string */
+    } as;
+};
+
+typedef struct {
+    char* name;
+    BrzVec stmts; /* StmtDef */
 } TaskDef;
 
-typedef struct
-{
-    char name[64];
-    Condition cond;
-    char task_name[64];     // resolved to task_index during parsing
-    int task_index;         // -1 if unresolved
+typedef struct {
+    char* name;
+    char* when_expr; /* string expression (simple boolean expr) */
+    char* do_task;   /* task name */
     int weight;
 } RuleDef;
 
-typedef struct
-{
-    char name[64];
-
-    int task_count;
-    int task_cap;
-    TaskDef* tasks;
-
-    int rule_count;
-    int rule_cap;
-    RuleDef* rules;
+typedef struct {
+    char* name;
+    BrzVec tasks; /* TaskDef */
+    BrzVec rules; /* RuleDef */
 } VocationDef;
 
-typedef struct
-{
-    VocationDef* vocations;
-    int vocation_count;
-    int vocation_cap;
-} VocationTable;
+typedef struct {
+    char* key;
+    double value;    /* numeric value when has_svalue==false */
+    bool  has_svalue;
+    char* svalue;    /* string value when has_svalue==true */
+} ParamDef;
 
+typedef struct {
+    /* common knobs */
+    uint32_t seed;
+    int years;
+    int agent_count;
+    int settlement_count;
 
-// Allocation helpers (heap-backed so configs can be large without stack overflow)
-void voc_table_init(VocationTable* vt);
-void voc_table_destroy(VocationTable* vt);
-VocationDef* voc_table_add(VocationTable* vt, const char* name);
-void vocation_add_task(VocationDef* v, const TaskDef* t);
-void vocation_add_rule(VocationDef* v, const RuleDef* r);
+    /* kinds { resources { ... } items { ... } } */
+    KindTable resource_kinds;
+    KindTable item_kinds;
 
-// Helpers for mapping DSL identifiers to ids/bits
-int dsl_parse_resource_id(const KindTable* resources, const char* s);
-int dsl_parse_item_id(const KindTable* items, const char* s);
-bool dsl_parse_tagbit(const char* s, int* out_tagbit);
+    /* resource params or other numeric params */
+    BrzVec params; /* ParamDef */
 
-// Find vocation/task by name
-int voc_find(const VocationTable* vt, const char* name);
-const VocationDef* voc_get(const VocationTable* vt, int voc_id);
-TaskDef* voc_task_mut(VocationDef* v, const char* task_name);
-const TaskDef* voc_task(const VocationDef* v, const char* task_name);
+    /* vocations { vocation X { ... } } */
+    BrzVec vocations; /* VocationDef */
+} ParsedConfig;
+
+/* lifecycle */
+void brz_cfg_init(ParsedConfig* cfg);
+void brz_cfg_free(ParsedConfig* cfg);
+
+/* helpers */
+TaskDef* brz_voc_find_task(VocationDef* voc, const char* name);
+
+#endif /* BRZ_DSL_H */

@@ -2,34 +2,37 @@
 #define BRZ_KINDS_H
 
 #include <stdbool.h>
+#include <stddef.h>
+
+#include "brz_vec.h"
 
 /*
  * Dynamic kinds
  *
- * Resource kinds and Item kinds are defined by the DSL (example.bronze),
- * not hard-coded in C enums.
- *
- * Kinds are stored as an ordered list of names. The numeric id is the
- * index into that list (0..count-1). IDs are stable within a single run
- * and the order is controlled by the DSL file.
+ * Resources and items are defined by the DSL file, not hard-coded enums.
+ * A KindTable is an ordered list of unique names. The numeric id is the
+ * index in that list.
  */
-typedef struct
-{
-    int count;
-    int cap;
-    char** names;   // owned strings
+
+typedef struct {
+    BrzVec names; /* elem = char* (owned) */
 } KindTable;
 
 void kind_table_init(KindTable* kt);
 void kind_table_destroy(KindTable* kt);
 
-// Add (or find existing) kind name; returns id (>=0) or -1 on OOM
-int kind_table_add(KindTable* kt, const char* name);
+/* Add (or find existing) kind name; returns id (>=0) or -1 on OOM */
+int  kind_table_add(KindTable* kt, const char* name);
 
-// Find kind id by name; returns id (>=0) or -1 if missing
-int kind_table_find(const KindTable* kt, const char* name);
+/* Find kind id by name; returns id (>=0) or -1 if missing */
+int  kind_table_find(const KindTable* kt, const char* name);
 
-// Convenience: safe name lookup; returns "" if out of range
+/* Convenience: safe name lookup; returns "" if out of range */
 const char* kind_table_name(const KindTable* kt, int id);
 
-#endif
+static inline size_t kind_table_count(const KindTable* kt)
+{
+    return kt ? brz_vec_len(&kt->names) : 0;
+}
+
+#endif /* BRZ_KINDS_H */
