@@ -293,7 +293,7 @@ static void parse_task(Lexer* lx, ParsedConfig* cfg, VocationDef* voc)
     BRZ_ASSERT(voc->task_count < MAX_TASKS_PER_VOC);
     TaskDef* t = &voc->tasks[voc->task_count++];
     memset(t,0,sizeof(*t));
-    strncpy(t->name, name.text, sizeof(t->name)-1);
+    snprintf(t->name, sizeof(t->name)-1, "%s", name.text);
 
     tok_expect(lx, TK_LBRACE);
     for(;;)
@@ -320,8 +320,8 @@ static void parse_task(Lexer* lx, ParsedConfig* cfg, VocationDef* voc)
             BRZ_ASSERT(res.kind==TK_WORD);
             Tok amt = next_tok(lx);
             BRZ_ASSERT(amt.kind==TK_WORD);
-            int rk_id = -1;
-            BRZ_ASSERT((dsl_parse_resource_id(&cfg->resources, res.text) >= 0));
+            int rk_id = dsl_parse_resource_id(&cfg->resources, res.text);
+            BRZ_ASSERT(rk_id >= 0);
             int a=0;
             BRZ_ASSERT(to_i32(amt.text,&a));
             t->ops[t->op_count++] = (OpDef)
@@ -335,8 +335,8 @@ static void parse_task(Lexer* lx, ParsedConfig* cfg, VocationDef* voc)
             BRZ_ASSERT(item.kind==TK_WORD);
             Tok amt  = next_tok(lx);
             BRZ_ASSERT(amt.kind==TK_WORD);
-            int ik_id = -1;
-            BRZ_ASSERT((dsl_parse_item_id(&cfg->items, item.text) >= 0));
+            int ik_id = dsl_parse_item_id(&cfg->items, item.text);
+            BRZ_ASSERT(ik_id >= 0);
             int a=0;
             BRZ_ASSERT(to_i32(amt.text,&a));
             t->ops[t->op_count++] = (OpDef)
@@ -383,7 +383,7 @@ static void parse_rule(Lexer* lx, ParsedConfig* cfg, VocationDef* voc)
     BRZ_ASSERT(voc->rule_count < MAX_RULES_PER_VOC);
     RuleDef* r = &voc->rules[voc->rule_count++];
     memset(r,0,sizeof(*r));
-    strncpy(r->name, name.text, sizeof(r->name)-1);
+    snprintf(r->name, sizeof(r->name)-1, "%s", name.text);
 
     tok_expect(lx, TK_LBRACE);
 
@@ -394,7 +394,7 @@ static void parse_rule(Lexer* lx, ParsedConfig* cfg, VocationDef* voc)
 
     Tok task = next_tok(lx);
     BRZ_ASSERT(task.kind==TK_WORD);
-    strncpy(r->task_name, task.text, sizeof(r->task_name)-1);
+    snprintf(r->task_name, sizeof(r->task_name)-1, "%s", task.text);
 
     Tok wt = next_tok(lx);
     BRZ_ASSERT(wt.kind==TK_WORD && brz_streq(wt.text,"weight"));
@@ -465,7 +465,7 @@ static void parse_vocations_block(Lexer* lx, ParsedConfig* cfg)
     would otherwise change what we print in warnings.) */
 char missing_task[sizeof(voc->rules[ri].task_name)];
 memset(missing_task, 0, sizeof(missing_task));
-strncpy(missing_task, tname_ptr, sizeof(missing_task)-1);
+snprintf(missing_task, sizeof(missing_task)-1, "%s", tname_ptr);
 
 if(voc_task(voc, missing_task) == NULL)
 {
@@ -478,21 +478,20 @@ if(voc_task(voc, missing_task) == NULL)
             BRZ_ASSERT(voc->task_count < MAX_TASKS_PER_VOC);
             TaskDef* w = &voc->tasks[voc->task_count++];
             memset(w, 0, sizeof(*w));
-            strncpy(w->name, "wander", sizeof(w->name)-1);
+            snprintf(w->name, sizeof(w->name)-1, "%s", "wander");
             w->op_count = 1;
             w->ops[0].kind = OP_ROAM;
             w->ops[0].arg_i = 2; /* default roam steps */
         }
-        strncpy(voc->rules[ri].task_name, "wander", sizeof(voc->rules[ri].task_name)-1);
-        fprintf(stderr, "WARN: vocation %s rule %s referred to missing task %s; synthesized %s\n",
-                voc->name, voc->rules[ri].name, missing_task, "wander");
+        snprintf(voc->rules[ri].task_name, sizeof(voc->rules[ri].task_name)-1, "%s", "wander");
+        /* "wander" is treated as a built-in convenience. No warning. */
     }
     else
     {
         // Be forgiving: bind to first task if present, otherwise synthesize an "idle" task.
         if(voc->task_count > 0)
         {
-            strncpy(voc->rules[ri].task_name, voc->tasks[0].name, sizeof(voc->rules[ri].task_name)-1);
+            snprintf(voc->rules[ri].task_name, sizeof(voc->rules[ri].task_name)-1, "%s", voc->tasks[0].name);
             fprintf(stderr, "WARN: vocation %s rule %s refers to missing task %s; using %s\n",
                     voc->name, voc->rules[ri].name, missing_task, voc->tasks[0].name);
         }
@@ -502,10 +501,10 @@ if(voc_task(voc, missing_task) == NULL)
                     BRZ_ASSERT(voc->task_count < MAX_TASKS_PER_VOC);
                     TaskDef* idle = &voc->tasks[voc->task_count++];
                     memset(idle,0,sizeof(*idle));
-                    strncpy(idle->name, "idle", sizeof(idle->name)-1);
+                    snprintf(idle->name, sizeof(idle->name)-1, "%s", "idle");
                     idle->op_count = 1;
                     idle->ops[0].kind = OP_REST;
-                    strncpy(voc->rules[ri].task_name, "idle", sizeof(voc->rules[ri].task_name)-1);
+                    snprintf(voc->rules[ri].task_name, sizeof(voc->rules[ri].task_name)-1, "%s", "idle");
                     fprintf(stderr, "WARN: vocation %s had no tasks; synthesized idle task\n", voc->name);
                 }
             }
