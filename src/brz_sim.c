@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <ctype.h>
+
+
 
 typedef struct {
     const VocationDef* voc;
@@ -15,6 +18,164 @@ typedef struct {
     double hunger;  /* 0..1 */
     double fatigue; /* 0..1 */
 } Agent;
+
+
+
+/* --- output & config helpers (restored legacy output features) --- */
+
+static const ParamDef* cfg_find_param(const ParsedConfig* cfg, const char* key)
+{
+    if(!cfg || !key) return NULL;
+    size_t n = brz_vec_len(&cfg->params);
+    for(size_t i=0;i<n;i++)
+    {
+        const ParamDef* p = (const ParamDef*)brz_vec_at((BrzVec*)&cfg->params, i);
+        if(p && p->key && brz_streq(p->key, key))
+            return p;
+    }
+    return NULL;
+}
+
+static int cfg_get_int(const ParsedConfig* cfg, const char* key, int defv)
+{
+    const ParamDef* p = cfg_find_param(cfg, key);
+    if(!p) return defv;
+    if(p->has_svalue) return defv;
+    return (int)(p->value);
+}
+
+static const char* cfg_get_str(const ParsedConfig* cfg, const char* key, const char* defv)
+{
+    const ParamDef* p = cfg_find_param(cfg, key);
+    if(!p) return defv;
+    if(!p->has_svalue) return defv;
+    return p->svalue ? p->svalue : defv;
+}
+
+static void write_snapshot_json(const ParsedConfig* cfg, const Agent* agents, size_t agent_n,
+                                int day, const char* filename)
+{
+    FILE* f = fopen(filename, "wb");
+    if(!f){ fprintf(stderr, "Warning: cannot write %s\n", filename); return; }
+
+    const size_t res_n = kind_table_count(&cfg->resource_kinds);
+    const size_t item_n = kind_table_count(&cfg->item_kinds);
+
+    fprintf(f, "{\n");
+    fprintf(f, "  \"day\": %d,\n", day);
+
+    /* kinds */
+    fprintf(f, "  \"resource_kinds\": [");
+    for(size_t i=0;i<res_n;i++)
+    {
+        const char* nm = kind_table_name(&cfg->resource_kinds, (int)i);
+        fprintf(f, "%s\"%s\"", (i? ", ":" "), nm ? nm : "");
+    }
+    fprintf(f, " ],\n");
+
+    fprintf(f, "  \"item_kinds\": [");
+    for(size_t i=0;i<item_n;i++)
+    {
+        const char* nm = kind_table_name(&cfg->item_kinds, (int)i);
+        fprintf(f, "%s\"%s\"", (i? ", ":" "), nm ? nm : "");
+    }
+    fprintf(f, " ],\n");
+
+    /* agents */
+    fprintf(f, "  \"agents\": [\n");
+    for(size_t ai=0; ai<agent_n; ai++)
+    {
+        const Agent* a = &agents[ai];
+        fprintf(f, "    {\n");
+        fprintf(f, "      \"vocation\": \"%s\",\n", (a->voc && a->voc->name) ? a->voc->name : "");
+        fprintf(f, "      \"hunger\": %.6f,\n", a->hunger);
+        fprintf(f, "      \"fatigue\": %.6f,\n", a->fatigue);
+
+        fprintf(f, "      \"resources\": {");
+        for(size_t ri=0; ri<res_n; ri++)
+        {
+            const char* nm = kind_table_name(&cfg->resource_kinds, (int)ri);
+            fprintf(f, "%s\"%s\": %.6f", (ri? ", ":" "), nm?nm:"", a->res ? a->res[ri] : 0.0);
+        }
+        fprintf(f, " },\n");
+
+        fprintf(f, "      \"items\": {");
+        for(size_t ii=0; ii<item_n; ii++)
+        {
+            const char* nm = kind_table_name(&cfg->item_kinds, (int)ii);
+            fprintf(f, "%s\"%s\": %.6f", (ii? ", ":" "), nm?nm:"", a->items ? a->items[ii] : 0.0);
+        }
+        fprintf(f, " }\n");
+
+        fprintf(f, "    }%s\n", (ai+1<agent_n)? ",":"");
+    }
+    fprintf(f, "  ]\n");
+    fprintf(f, "}\n");
+    fclose(f);
+}
+
+static void dump_ascii_map(const ParsedConfig* cfg, const Agent* agents, size_t agent_n,
+                           int day, const char* filename, int w, int h)
+{
+    if(w < 10) w = 10;
+    if(h < 5)  h = 5;
+
+    FILE* f = fopen(filename, "wb");
+    if(!f){ fprintf(stderr, "Warning: cannot write %s\n", filename); return; }
+
+    /* A lightweight “map” that keeps the legacy cadence/filenames:
+       - Places settlement markers 'S' using world_seed
+       - Places one glyph per vocation (first letter)
+       - Adds a legend with per-vocation avg hunger/fatigue
+       This does not attempt to recreate the removed procedural world grid. */
+
+    char* grid = (char*)malloc((size_t)w*(size_t)h);
+    if(!grid){ fclose(f); return; }
+    for(int y=0;y<h;y++) for(int x=0;x<w;x++) grid[y*w+x] = '.';
+
+    BrzRng r; brz_rng_seed(&r, cfg->seed ? cfg->seed : 0xC0FFEEu);
+
+    int settle_n = cfg->settlement_count;
+    if(settle_n < 0) settle_n = 0;
+    for(int i=0;i<settle_n;i++)
+    {
+        int x = (int)(brz_rng_u32(&r) % (uint32_t)w);
+        int y = (int)(brz_rng_u32(&r) % (uint32_t)h);
+        grid[y*w+x] = 'S';
+    }
+
+    for(size_t i=0;i<agent_n;i++)
+    {
+        const Agent* a = &agents[i];
+        char g = '?';
+        if(a->voc && a->voc->name && a->voc->name[0]) g = (char)toupper((unsigned char)a->voc->name[0]);
+
+        int x = (int)(brz_rng_u32(&r) % (uint32_t)w);
+        int y = (int)(brz_rng_u32(&r) % (uint32_t)h);
+        if(grid[y*w+x]=='.') grid[y*w+x] = g;
+    }
+
+    fprintf(f, "BRONZESIM MAP day %d (%dx%d)\n", day, w, h);
+    for(int y=0;y<h;y++)
+    {
+        for(int x=0;x<w;x++) fputc(grid[y*w+x], f);
+        fputc('\n', f);
+    }
+
+    fprintf(f, "\nLegend (vocation -> hunger/fatigue):\n");
+    for(size_t i=0;i<agent_n;i++)
+    {
+        const Agent* a = &agents[i];
+        char g = '?';
+        const char* nm = "(null)";
+        if(a->voc && a->voc->name){ nm = a->voc->name; if(nm[0]) g = (char)toupper((unsigned char)nm[0]); }
+        fprintf(f, "  %c %s  hunger=%.3f fatigue=%.3f\n", g, nm, a->hunger, a->fatigue);
+        if(i >= 60) { fprintf(f, "  ...\n"); break; }
+    }
+
+    free(grid);
+    fclose(f);
+}
 
 /* ---------------- expression evaluator (very small) ----------------
    Supports:
@@ -442,11 +603,18 @@ int brz_run(const ParsedConfig* cfg)
         agents[i].fatigue = 0.25;
     }
 
-    int days = find_param_int(cfg, "cycles", 60);
+    int days = cfg_get_int(cfg, "sim_days", cfg_get_int(cfg, "cycles", 60));
     if(days < 1) days = 60;
 
+    /* legacy-style periodic output controls (from sim { ... } block) */
+    int report_every   = cfg_get_int(cfg, "sim_report_every", 10);
+    int snapshot_every = cfg_get_int(cfg, "sim_snapshot_every", 0);
+    int map_every      = cfg_get_int(cfg, "sim_map_every", 0);
+    int map_w          = cfg_get_int(cfg, "sim_map_w", 80);
+    int map_h          = cfg_get_int(cfg, "sim_map_h", 40);
+
     BrzRng rng;
-    brz_rng_seed(&rng, 0xC0FFEEu);
+    brz_rng_seed(&rng, cfg->seed ? cfg->seed : 0xC0FFEEu);
 
     for(int day=1; day<=days; day++)
     {
@@ -473,8 +641,22 @@ int brz_run(const ParsedConfig* cfg)
             agent_auto_eat(a, cfg);
         }
 
-        if(day==1 || day%5==0 || day==days)
+        if(day==1 || (report_every>0 && day%report_every==0) || day==days)
             print_day_summary(day, cfg, agents, agent_n);
+
+        if(snapshot_every > 0 && (day % snapshot_every)==0)
+        {
+            char fn[128];
+            snprintf(fn, sizeof(fn), "snapshot_day%05d.json", day);
+            write_snapshot_json(cfg, agents, agent_n, day, fn);
+        }
+
+        if(map_every > 0 && (day % map_every)==0)
+        {
+            char fn[128];
+            snprintf(fn, sizeof(fn), "map_day%05d.txt", day);
+            dump_ascii_map(cfg, agents, agent_n, day, fn, map_w, map_h);
+        }
     }
 
     /* final per-vocation snapshot (top 10) */

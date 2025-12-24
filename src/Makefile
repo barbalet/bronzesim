@@ -6,7 +6,7 @@ OBJS = main.o brz_vec.o brz_util.o brz_kinds.o brz_dsl.o brz_parser.o brz_sim.o
 all: bronzesim
 
 bronzesim: $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) -lm
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
