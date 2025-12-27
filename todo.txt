@@ -1,8 +1,1 @@
-Improve DSL verbs. 2025-12-15
-Improve DSL syntax checks and error reporting. 2025-12-15
-
-Use vocation CVS to fill the use of resources over all vocations. 2025-12-15
-Expand example.bronze from CVS. 2025-12-15
-
 Add realtime GUI for the simulation. 2025-12-15
-Update simulation for realism. 2025-12-15
