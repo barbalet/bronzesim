@@ -65,7 +65,7 @@ RES_SHEEP = 9
 RES_PIG = 10
 RES_CHARCOAL = 11
 RES_RELIGION = 12
-RES_NATIONALISM = 13
+RES_TRIBALISM = 13
 RES_MAX = 14
 
 # Inventory items (must match brz_dsl.h ordering)
@@ -230,7 +230,7 @@ class ParsedConfig:
     pig_renew: float = 0.010
     charcoal_renew: float = 0.005
     religion_renew: float = 0.002
-    nationalism_renew: float = 0.0005
+    tribalism_renew: float = 0.0005
 
     voc_table: VocationTable = field(default_factory=VocationTable)
 
@@ -328,7 +328,7 @@ RESOURCE_MAP = {
     "pig": RES_PIG,
     "charcoal": RES_CHARCOAL,
     "religion": RES_RELIGION,
-    "nationalism": RES_NATIONALISM,
+    "tribalism": RES_TRIBALISM,
 }
 
 ITEM_MAP = {
@@ -722,8 +722,8 @@ def parse_bronze_file(path: str) -> ParsedConfig:
                     cfg.charcoal_renew = f
                 elif k.text == "religion_renew":
                     cfg.religion_renew = f
-                elif k.text == "nationalism_renew":
-                    cfg.nationalism_renew = f
+                elif k.text == "tribalism_renew":
+                    cfg.tribalism_renew = f
                 else:
                     pass
 
@@ -850,7 +850,7 @@ def world_cell_res0(g: WorldGen, x: int, y: int, rk: int, tags: int) -> int:
         return clamp_u8(25 + base // 5) if (tags & TAG_FOREST) else 0
     if rk == RES_RELIGION:
         return clamp_u8(60 + base // 5) if (tags & TAG_SETTLE) else 0
-    if rk == RES_NATIONALISM:
+    if rk == RES_TRIBALISM:
         return clamp_u8(20 + base // 8) if (tags & TAG_SETTLE) else 0
 
     return 0
@@ -933,7 +933,7 @@ class ChunkCache:
                 if tags & TAG_SETTLE:
                     res[RES_FIRE][idx] = clamp_u8(180 + base // 4)
                     res[RES_RELIGION][idx] = clamp_u8(60 + base // 5)
-                    res[RES_NATIONALISM][idx] = clamp_u8(20 + base // 8)
+                    res[RES_TRIBALISM][idx] = clamp_u8(20 + base // 8)
 
         return ch
 
@@ -971,10 +971,10 @@ class ChunkCache:
                 if tags & TAG_SETTLE:
                     fi = ch.res[RES_FIRE][i] + int(self.spec.res_model.renew_per_day[RES_FIRE] * 255.0)
                     re = ch.res[RES_RELIGION][i] + int(self.spec.res_model.renew_per_day[RES_RELIGION] * 255.0)
-                    na = ch.res[RES_NATIONALISM][i] + int(self.spec.res_model.renew_per_day[RES_NATIONALISM] * 255.0)
+                    na = ch.res[RES_TRIBALISM][i] + int(self.spec.res_model.renew_per_day[RES_TRIBALISM] * 255.0)
                     ch.res[RES_FIRE][i] = clamp_u8(fi)
                     ch.res[RES_RELIGION][i] = clamp_u8(re)
-                    ch.res[RES_NATIONALISM][i] = clamp_u8(na)
+                    ch.res[RES_TRIBALISM][i] = clamp_u8(na)
 
                 if tags & TAG_COAST:
                     v = ch.res[RES_FISH][i] + int(self.spec.res_model.renew_per_day[RES_FISH] * fishMul * 255.0)
@@ -1427,7 +1427,7 @@ def sim_init_from_cfg(cfg: ParsedConfig) -> Sim:
     rm.renew_per_day[RES_PIG] = cfg.pig_renew
     rm.renew_per_day[RES_CHARCOAL] = cfg.charcoal_renew
     rm.renew_per_day[RES_RELIGION] = cfg.religion_renew
-    rm.renew_per_day[RES_NATIONALISM] = cfg.nationalism_renew
+    rm.renew_per_day[RES_TRIBALISM] = cfg.tribalism_renew
 
     ws = WorldSpec(seed=cfg.seed, settlement_count=max(1, cfg.settlement_count), res_model=rm)
     gen = worldgen_init(ws.seed)

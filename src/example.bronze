@@ -1,12 +1,12 @@
 kinds {
   resources {
     fish grain wood clay copper tin
-    fire plant_fiber cattle sheep pig charcoal religion nationalism
+    fire plant_fiber cattle sheep pig charcoal religion tribalism
   }
   items {
     // resources can also appear as items in inventories
     fish grain wood clay copper tin
-    fire plant_fiber cattle sheep pig charcoal religion nationalism
+    fire plant_fiber cattle sheep pig charcoal religion tribalism
 
     // crafted items
     bronze tool pot
@@ -57,7 +57,7 @@ resources {
   pig_renew 0.01
   charcoal_renew 0.005
   religion_renew 0.002
-  nationalism_renew 0.0005
+  tribalism_renew 0.0005
 }
 
 vocations {

@@ -535,7 +535,7 @@ static void print_kinds(const char* label, const KindTable* kt)
 static void print_day_summary(int day, const ParsedConfig* cfg, Agent* agents, size_t agent_n)
 {
     /* aggregate key resources if they exist */
-    const char* keys[] = { "grain","fish","wood","clay","copper","tin","charcoal","cattle","sheep","pig","religion","nationalism" };
+    const char* keys[] = { "grain","fish","wood","clay","copper","tin","charcoal","cattle","sheep","pig","religion","tribalism" };
     double sums[sizeof(keys)/sizeof(keys[0])];
     memset(sums, 0, sizeof(sums));
     double hsum=0.0, fsum=0.0;

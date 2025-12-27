@@ -43,7 +43,7 @@ Fish-smoker / preserver,Food,
 Boat repairer,Construction,fish
 Coastal trader / barge operator,Maritime,
 Landing-place coordinator,Maritime,
-Chieftain / village leader,Community,nationalism
+Chieftain / village leader,Community,tribalism
 Speaker / diplomat between settlements,Community,
 Ritual specialist / priest-seer,Ritual,religion
 Burial mound constructor,Construction,
@@ -51,7 +51,7 @@ Storyteller / oral historian,Social,
 "Musician (lyre, pipes, drums)",Social,
 Carver of ritual/ceremonial objects,Ritual,religion
 Peacekeeper / watchman,Social,
-Warrior / defender,Community,nationalism
+Warrior / defender,Community,tribalism
 Bone tool maker,Tools,
 Antler tool maker,Tools,
 Millstone maker,Construction,grain
