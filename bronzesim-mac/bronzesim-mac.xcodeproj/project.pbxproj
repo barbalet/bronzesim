@@ -7,17 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		4AB8A3132EEF814C00ED2BBB /* brz_util.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AB8A30F2EEF814C00ED2BBB /* brz_util.c */; };
-		4AB8A3142EEF814C00ED2BBB /* brz_world.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AB8A3112EEF814C00ED2BBB /* brz_world.c */; };
-		4AB8A3152EEF814C00ED2BBB /* brz_sim.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AB8A30D2EEF814C00ED2BBB /* brz_sim.c */; };
-		4AB8A3162EEF814C00ED2BBB /* brz_dsl.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AB8A3092EEF814C00ED2BBB /* brz_dsl.c */; };
-		4AB8A3172EEF814C00ED2BBB /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AB8A3122EEF814C00ED2BBB /* main.c */; };
-		4AB8A3182EEF814C00ED2BBB /* brz_cache.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AB8A3072EEF814C00ED2BBB /* brz_cache.c */; };
-		4AB8A3192EEF814C00ED2BBB /* brz_parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AB8A30B2EEF814C00ED2BBB /* brz_parser.c */; };
+		4A8676172EFC9DB0002C7C83 /* brz_parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 4A86760F2EFC9DB0002C7C83 /* brz_parser.c */; };
+		4A8676182EFC9DB0002C7C83 /* brz_kinds.c in Sources */ = {isa = PBXBuildFile; fileRef = 4A86760D2EFC9DB0002C7C83 /* brz_kinds.c */; };
+		4A8676192EFC9DB0002C7C83 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 4A8676162EFC9DB0002C7C83 /* main.c */; };
+		4A86761A2EFC9DB0002C7C83 /* brz_dsl.c in Sources */ = {isa = PBXBuildFile; fileRef = 4A86760B2EFC9DB0002C7C83 /* brz_dsl.c */; };
+		4A86761B2EFC9DB0002C7C83 /* brz_sim.c in Sources */ = {isa = PBXBuildFile; fileRef = 4A8676112EFC9DB0002C7C83 /* brz_sim.c */; };
+		4A86761C2EFC9DB0002C7C83 /* brz_util.c in Sources */ = {isa = PBXBuildFile; fileRef = 4A8676132EFC9DB0002C7C83 /* brz_util.c */; };
+		4A86761D2EFC9DB0002C7C83 /* brz_vec.c in Sources */ = {isa = PBXBuildFile; fileRef = 4A8676152EFC9DB0002C7C83 /* brz_vec.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		4AB8A2FA2EEF812800ED2BBB /* CopyFiles */ = {
+		4A8675FE2EFC9D86002C7C83 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -29,24 +29,32 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		4AB8A2FC2EEF812800ED2BBB /* bronzesim-mac */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "bronzesim-mac"; sourceTree = BUILT_PRODUCTS_DIR; };
-		4AB8A3062EEF814C00ED2BBB /* brz_cache.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_cache.h; path = ../src/brz_cache.h; sourceTree = SOURCE_ROOT; };
-		4AB8A3072EEF814C00ED2BBB /* brz_cache.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_cache.c; path = ../src/brz_cache.c; sourceTree = SOURCE_ROOT; };
-		4AB8A3082EEF814C00ED2BBB /* brz_dsl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_dsl.h; path = ../src/brz_dsl.h; sourceTree = SOURCE_ROOT; };
-		4AB8A3092EEF814C00ED2BBB /* brz_dsl.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_dsl.c; path = ../src/brz_dsl.c; sourceTree = SOURCE_ROOT; };
-		4AB8A30A2EEF814C00ED2BBB /* brz_parser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_parser.h; path = ../src/brz_parser.h; sourceTree = SOURCE_ROOT; };
-		4AB8A30B2EEF814C00ED2BBB /* brz_parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_parser.c; path = ../src/brz_parser.c; sourceTree = SOURCE_ROOT; };
-		4AB8A30C2EEF814C00ED2BBB /* brz_sim.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_sim.h; path = ../src/brz_sim.h; sourceTree = SOURCE_ROOT; };
-		4AB8A30D2EEF814C00ED2BBB /* brz_sim.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_sim.c; path = ../src/brz_sim.c; sourceTree = SOURCE_ROOT; };
-		4AB8A30E2EEF814C00ED2BBB /* brz_util.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_util.h; path = ../src/brz_util.h; sourceTree = SOURCE_ROOT; };
-		4AB8A30F2EEF814C00ED2BBB /* brz_util.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_util.c; path = ../src/brz_util.c; sourceTree = SOURCE_ROOT; };
-		4AB8A3102EEF814C00ED2BBB /* brz_world.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_world.h; path = ../src/brz_world.h; sourceTree = SOURCE_ROOT; };
-		4AB8A3112EEF814C00ED2BBB /* brz_world.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_world.c; path = ../src/brz_world.c; sourceTree = SOURCE_ROOT; };
-		4AB8A3122EEF814C00ED2BBB /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = main.c; path = ../src/main.c; sourceTree = SOURCE_ROOT; };
+		4A8676002EFC9D86002C7C83 /* bronzesim-mac */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "bronzesim-mac"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A86760A2EFC9DB0002C7C83 /* brz_dsl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_dsl.h; path = ../src/brz_dsl.h; sourceTree = SOURCE_ROOT; };
+		4A86760B2EFC9DB0002C7C83 /* brz_dsl.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_dsl.c; path = ../src/brz_dsl.c; sourceTree = SOURCE_ROOT; };
+		4A86760C2EFC9DB0002C7C83 /* brz_kinds.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_kinds.h; path = ../src/brz_kinds.h; sourceTree = SOURCE_ROOT; };
+		4A86760D2EFC9DB0002C7C83 /* brz_kinds.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_kinds.c; path = ../src/brz_kinds.c; sourceTree = SOURCE_ROOT; };
+		4A86760E2EFC9DB0002C7C83 /* brz_parser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_parser.h; path = ../src/brz_parser.h; sourceTree = SOURCE_ROOT; };
+		4A86760F2EFC9DB0002C7C83 /* brz_parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_parser.c; path = ../src/brz_parser.c; sourceTree = SOURCE_ROOT; };
+		4A8676102EFC9DB0002C7C83 /* brz_sim.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_sim.h; path = ../src/brz_sim.h; sourceTree = SOURCE_ROOT; };
+		4A8676112EFC9DB0002C7C83 /* brz_sim.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_sim.c; path = ../src/brz_sim.c; sourceTree = SOURCE_ROOT; };
+		4A8676122EFC9DB0002C7C83 /* brz_util.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_util.h; path = ../src/brz_util.h; sourceTree = SOURCE_ROOT; };
+		4A8676132EFC9DB0002C7C83 /* brz_util.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_util.c; path = ../src/brz_util.c; sourceTree = SOURCE_ROOT; };
+		4A8676142EFC9DB0002C7C83 /* brz_vec.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_vec.h; path = ../src/brz_vec.h; sourceTree = SOURCE_ROOT; };
+		4A8676152EFC9DB0002C7C83 /* brz_vec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_vec.c; path = ../src/brz_vec.c; sourceTree = SOURCE_ROOT; };
+		4A8676162EFC9DB0002C7C83 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = main.c; path = ../src/main.c; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		4A8676022EFC9D86002C7C83 /* bronzesim-mac */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "bronzesim-mac";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
-		4AB8A2F92EEF812800ED2BBB /* Frameworks */ = {
+		4A8675FD2EFC9D86002C7C83 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -56,30 +64,31 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		4AB8A2F32EEF812800ED2BBB = {
+		4A8675F72EFC9D86002C7C83 = {
 			isa = PBXGroup;
 			children = (
-				4AB8A3062EEF814C00ED2BBB /* brz_cache.h */,
-				4AB8A3072EEF814C00ED2BBB /* brz_cache.c */,
-				4AB8A3082EEF814C00ED2BBB /* brz_dsl.h */,
-				4AB8A3092EEF814C00ED2BBB /* brz_dsl.c */,
-				4AB8A30A2EEF814C00ED2BBB /* brz_parser.h */,
-				4AB8A30B2EEF814C00ED2BBB /* brz_parser.c */,
-				4AB8A30C2EEF814C00ED2BBB /* brz_sim.h */,
-				4AB8A30D2EEF814C00ED2BBB /* brz_sim.c */,
-				4AB8A30E2EEF814C00ED2BBB /* brz_util.h */,
-				4AB8A30F2EEF814C00ED2BBB /* brz_util.c */,
-				4AB8A3102EEF814C00ED2BBB /* brz_world.h */,
-				4AB8A3112EEF814C00ED2BBB /* brz_world.c */,
-				4AB8A3122EEF814C00ED2BBB /* main.c */,
-				4AB8A2FD2EEF812800ED2BBB /* Products */,
+				4A86760A2EFC9DB0002C7C83 /* brz_dsl.h */,
+				4A86760B2EFC9DB0002C7C83 /* brz_dsl.c */,
+				4A86760C2EFC9DB0002C7C83 /* brz_kinds.h */,
+				4A86760D2EFC9DB0002C7C83 /* brz_kinds.c */,
+				4A86760E2EFC9DB0002C7C83 /* brz_parser.h */,
+				4A86760F2EFC9DB0002C7C83 /* brz_parser.c */,
+				4A8676102EFC9DB0002C7C83 /* brz_sim.h */,
+				4A8676112EFC9DB0002C7C83 /* brz_sim.c */,
+				4A8676122EFC9DB0002C7C83 /* brz_util.h */,
+				4A8676132EFC9DB0002C7C83 /* brz_util.c */,
+				4A8676142EFC9DB0002C7C83 /* brz_vec.h */,
+				4A8676152EFC9DB0002C7C83 /* brz_vec.c */,
+				4A8676162EFC9DB0002C7C83 /* main.c */,
+				4A8676022EFC9D86002C7C83 /* bronzesim-mac */,
+				4A8676012EFC9D86002C7C83 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		4AB8A2FD2EEF812800ED2BBB /* Products */ = {
+		4A8676012EFC9D86002C7C83 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				4AB8A2FC2EEF812800ED2BBB /* bronzesim-mac */,
+				4A8676002EFC9D86002C7C83 /* bronzesim-mac */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -87,77 +96,80 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		4AB8A2FB2EEF812800ED2BBB /* bronzesim-mac */ = {
+		4A8675FF2EFC9D86002C7C83 /* bronzesim-mac */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 4AB8A3032EEF812800ED2BBB /* Build configuration list for PBXNativeTarget "bronzesim-mac" */;
+			buildConfigurationList = 4A8676072EFC9D86002C7C83 /* Build configuration list for PBXNativeTarget "bronzesim-mac" */;
 			buildPhases = (
-				4AB8A2F82EEF812800ED2BBB /* Sources */,
-				4AB8A2F92EEF812800ED2BBB /* Frameworks */,
-				4AB8A2FA2EEF812800ED2BBB /* CopyFiles */,
+				4A8675FC2EFC9D86002C7C83 /* Sources */,
+				4A8675FD2EFC9D86002C7C83 /* Frameworks */,
+				4A8675FE2EFC9D86002C7C83 /* CopyFiles */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
+			fileSystemSynchronizedGroups = (
+				4A8676022EFC9D86002C7C83 /* bronzesim-mac */,
+			);
 			name = "bronzesim-mac";
 			packageProductDependencies = (
 			);
 			productName = "bronzesim-mac";
-			productReference = 4AB8A2FC2EEF812800ED2BBB /* bronzesim-mac */;
+			productReference = 4A8676002EFC9D86002C7C83 /* bronzesim-mac */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		4AB8A2F42EEF812800ED2BBB /* Project object */ = {
+		4A8675F82EFC9D86002C7C83 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastUpgradeCheck = 2610;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
-					4AB8A2FB2EEF812800ED2BBB = {
-						CreatedOnToolsVersion = 26.1.1;
+					4A8675FF2EFC9D86002C7C83 = {
+						CreatedOnToolsVersion = 26.2;
 					};
 				};
 			};
-			buildConfigurationList = 4AB8A2F72EEF812800ED2BBB /* Build configuration list for PBXProject "bronzesim-mac" */;
+			buildConfigurationList = 4A8675FB2EFC9D86002C7C83 /* Build configuration list for PBXProject "bronzesim-mac" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
 			);
-			mainGroup = 4AB8A2F32EEF812800ED2BBB;
+			mainGroup = 4A8675F72EFC9D86002C7C83;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 4AB8A2FD2EEF812800ED2BBB /* Products */;
+			productRefGroup = 4A8676012EFC9D86002C7C83 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				4AB8A2FB2EEF812800ED2BBB /* bronzesim-mac */,
+				4A8675FF2EFC9D86002C7C83 /* bronzesim-mac */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		4AB8A2F82EEF812800ED2BBB /* Sources */ = {
+		4A8675FC2EFC9D86002C7C83 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4AB8A3132EEF814C00ED2BBB /* brz_util.c in Sources */,
-				4AB8A3142EEF814C00ED2BBB /* brz_world.c in Sources */,
-				4AB8A3152EEF814C00ED2BBB /* brz_sim.c in Sources */,
-				4AB8A3162EEF814C00ED2BBB /* brz_dsl.c in Sources */,
-				4AB8A3172EEF814C00ED2BBB /* main.c in Sources */,
-				4AB8A3182EEF814C00ED2BBB /* brz_cache.c in Sources */,
-				4AB8A3192EEF814C00ED2BBB /* brz_parser.c in Sources */,
+				4A8676172EFC9DB0002C7C83 /* brz_parser.c in Sources */,
+				4A8676182EFC9DB0002C7C83 /* brz_kinds.c in Sources */,
+				4A8676192EFC9DB0002C7C83 /* main.c in Sources */,
+				4A86761A2EFC9DB0002C7C83 /* brz_dsl.c in Sources */,
+				4A86761B2EFC9DB0002C7C83 /* brz_sim.c in Sources */,
+				4A86761C2EFC9DB0002C7C83 /* brz_util.c in Sources */,
+				4A86761D2EFC9DB0002C7C83 /* brz_vec.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		4AB8A3012EEF812800ED2BBB /* Debug */ = {
+		4A8676052EFC9D86002C7C83 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -210,7 +222,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -218,7 +230,7 @@
 			};
 			name = Debug;
 		};
-		4AB8A3022EEF812800ED2BBB /* Release */ = {
+		4A8676062EFC9D86002C7C83 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -265,14 +277,14 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
 			};
 			name = Release;
 		};
-		4AB8A3042EEF812800ED2BBB /* Debug */ = {
+		4A8676082EFC9D86002C7C83 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -280,7 +292,7 @@
 			};
 			name = Debug;
 		};
-		4AB8A3052EEF812800ED2BBB /* Release */ = {
+		4A8676092EFC9D86002C7C83 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -291,25 +303,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		4AB8A2F72EEF812800ED2BBB /* Build configuration list for PBXProject "bronzesim-mac" */ = {
+		4A8675FB2EFC9D86002C7C83 /* Build configuration list for PBXProject "bronzesim-mac" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				4AB8A3012EEF812800ED2BBB /* Debug */,
-				4AB8A3022EEF812800ED2BBB /* Release */,
+				4A8676052EFC9D86002C7C83 /* Debug */,
+				4A8676062EFC9D86002C7C83 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		4AB8A3032EEF812800ED2BBB /* Build configuration list for PBXNativeTarget "bronzesim-mac" */ = {
+		4A8676072EFC9D86002C7C83 /* Build configuration list for PBXNativeTarget "bronzesim-mac" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				4AB8A3042EEF812800ED2BBB /* Debug */,
-				4AB8A3052EEF812800ED2BBB /* Release */,
+				4A8676082EFC9D86002C7C83 /* Debug */,
+				4A8676092EFC9D86002C7C83 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 4AB8A2F42EEF812800ED2BBB /* Project object */;
+	rootObject = 4A8675F82EFC9D86002C7C83 /* Project object */;
 }

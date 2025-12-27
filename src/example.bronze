@@ -1,3 +1,18 @@
+kinds {
+  resources {
+    fish grain wood clay copper tin
+    fire plant_fiber cattle sheep pig charcoal religion nationalism
+  }
+  items {
+    // resources can also appear as items in inventories
+    fish grain wood clay copper tin
+    fire plant_fiber cattle sheep pig charcoal religion nationalism
+
+    // crafted items
+    bronze tool pot
+  }
+}
+
 # BRONZESIM example.bronze
  
 # This is a BRONZESIM Domain-Specific Language (DSL) file.
