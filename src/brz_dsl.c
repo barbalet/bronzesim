@@ -3,6 +3,103 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+/*
+DSL_GRAMMAR_BEGIN
+# NOTE: This block is the single source of truth for the BRONZESIM DSL grammar.
+# It is extracted and injected into DSL_MANUAL.md automatically (make -C src docs).
+#
+# Conventions:
+#   - 'literal' denotes a keyword or symbol token.
+#   - identifier / number / string are lexical tokens.
+#   - { X } means repetition (zero or more).
+#   - [ X ] means optional.
+#
+# This grammar describes the *surface syntax*. The engine imposes additional semantic rules.
+
+program             := { top_level_block } EOF ;
+
+top_level_block     := world_block
+                    | kinds_block
+                    | resources_block
+                    | items_block
+                    | vocations_block
+                    | compat_block ;
+
+# ----- Blocks -----
+
+world_block          := 'world' block_open { world_stmt } block_close ;
+kinds_block          := 'kinds' block_open { kind_def } block_close ;
+resources_block      := 'resources' block_open { resource_def } block_close ;
+items_block          := 'items' block_open { item_def } block_close ;
+
+vocations_block      := 'vocations' block_open { vocation_def } block_close ;
+vocation_def         := 'vocation' identifier block_open { vocation_member } block_close ;
+vocation_member      := task_def | rule_def ;
+
+task_def             := 'task' identifier block_open { task_stmt } block_close ;
+rule_def             := 'rule' identifier block_open { rule_stmt } block_close ;
+
+# ----- World statements -----
+# The world block is intentionally permissive: keys are identifiers.
+# Values can be number, string, or identifier.
+
+world_stmt           := identifier value ';' ;
+value                := number | string | identifier ;
+
+# ----- Registry definitions -----
+
+kind_def             := identifier ';' ;
+resource_def         := identifier ':' identifier ';' ;
+item_def             := identifier ':' identifier ';' ;
+
+# ----- Rule / task language -----
+
+rule_stmt            := when_block
+                    | do_stmt
+                    | chance_block
+                    | ';' ;
+
+task_stmt            := action_stmt
+                    | do_stmt
+                    | when_block
+                    | chance_block
+                    | ';' ;
+
+# Common structured statements
+when_block           := 'when' condition block_open { task_stmt } block_close ;
+chance_block         := 'chance' number block_open { task_stmt } block_close ;
+do_stmt              := 'do' identifier ';' ;
+
+# Conditions are intentionally simple in the core grammar.
+# The engine may accept additional operators in future revisions.
+
+condition            := identifier cond_op cond_rhs ;
+cond_op              := '<' | '<=' | '>' | '>=' | '==' | '!=' ;
+cond_rhs             := number | identifier ;
+
+# Actions are a small, engine-defined set of verbs.
+# Extend the verb set in the engine and keep the grammar here in sync.
+
+action_stmt          := action_verb identifier number ';' ;
+action_verb          := 'gather' | 'craft' | 'trade' ;
+
+# ----- Lexical helpers -----
+
+block_open           := '{' ;
+block_close          := '}' ;
+
+# ----- Compatibility blocks -----
+# Older examples may use these blocks. They are accepted for backwards compatibility
+# and may be mapped internally onto the newer registries.
+
+compat_block         := 'sim' block_open { compat_stmt } block_close
+                     | 'agents' block_open { compat_stmt } block_close ;
+
+compat_stmt          := identifier { identifier | number | string | ':' | ';' | '{' | '}' } ;
+DSL_GRAMMAR_END
+*/
+
 static void op_free(OpDef* op)
 {
     if(!op) return;
