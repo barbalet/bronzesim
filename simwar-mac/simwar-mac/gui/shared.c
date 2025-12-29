@@ -68,12 +68,10 @@ void shared_dimensions(n_int * dimensions)
     dimensions[3] = 0;   /* has menus */
 }
 
-shared_cycle_state shared_cycle(n_uint ticks, n_int fIdentification)
+void brz_shared_cycle(n_uint ticks)
 {
     if (simulation_started)
         engine_update();
-
-    return SHARED_CYCLE_OK;
 }
 
 void shared_battle_string(n_string string)
@@ -81,78 +79,21 @@ void shared_battle_string(n_string string)
     battle_string = string;
 }
 
-n_int shared_init(n_int view, n_uint random)
+void brz_shared_init(n_uint random)
 {
     if (engine_init(random, battle_string))
     {
         simulation_started = 1;
     }
-    return 0;
 }
 
-void shared_close(void)
+void brz_shared_close(void)
 {
     engine_exit();
 }
 
-n_int shared_menu(n_int menuValue)
-{
-    return 0;
-}
 
-void shared_delta(n_double delta_x, n_double delta_y, n_int wwind)
-{
-    draw_dpx(delta_x);
-    draw_dpy(delta_y);
-}
-
-void shared_zoom(n_double num, n_int wwind)
-{
-    draw_dpz(num);
-}
-
-void shared_rotate(n_double num, n_int wwind)
-{
-    
-}
-
-n_int key_pressed = -1;
-
-void shared_keyReceived(n_int value, n_int fIdentification)
-{
-    if (value != key_pressed)
-    {
-        engine_key_received(value);
-    }
-    key_pressed = value;
-}
-
-void shared_keyUp(void)
-{
-    key_pressed = -1;
-}
-
-void shared_mouseOption(n_byte option)
-{
-    
-}
-
-void shared_mouseReceived(n_double valX, n_double valY, n_int fIdentification)
-{
-    engine_mouse((n_int)valX, (n_int)valY);
-}
-
-void shared_mouseUp(void)
-{
-    engine_mouse_up();
-}
-
-void shared_about(void)
-{
-    
-}
-
-static n_byte * shared_output_buffer(n_int width, n_int height)
+static n_byte * brz_shared_output_buffer(n_int width, n_int height)
 {
     if (outputBufferOld)
     {
@@ -168,20 +109,9 @@ static n_byte * shared_output_buffer(n_int width, n_int height)
     return outputBuffer;
 }
 
-n_byte * shared_legacy_draw(n_byte fIdentification, n_int dim_x, n_int dim_y)
+n_byte * brz_shared_draw(n_int dim_x, n_int dim_y)
 {
-    n_byte * outputBuffer = shared_output_buffer(dim_x, dim_y);
-
-	if (simulation_started)
-	{
-        draw_engine(outputBuffer);
-	}
-    return outputBuffer;
-}
-
-n_byte * shared_draw(n_int fIdentification, n_int dim_x, n_int dim_y, n_byte changed)
-{
-    n_byte * outputBuffer = shared_output_buffer(dim_x, dim_y);
+    n_byte * outputBuffer = brz_shared_output_buffer(dim_x, dim_y);
         
     if (simulation_started)
     {
@@ -189,60 +119,3 @@ n_byte * shared_draw(n_int fIdentification, n_int dim_x, n_int dim_y, n_byte cha
     }
     return outputBuffer;
 }
-
-// Not used in Simulated War
-n_int shared_new(n_uint seed)
-{
-    engine_new();
-    return 0;
-}
-
-// Not used in Simulated War
-n_int shared_new_agents(n_uint seed)
-{
-    engine_new();
-    return 0;
-}
-
-n_byte shared_openFileName(n_constant_string cStringFileName, n_int isScript)
-{
-    if (engine_conditions(engine_conditions_file(cStringFileName)) == 0)
-    {
-        simulation_started = 1;
-        return 1;
-    }
-    
-    return 0;
-}
-
-n_int shared_simulation_started(void)
-{
-    return simulation_started;
-}
-
-void shared_saveFileName(n_constant_string cStringFileName)
-{
-    
-}
-
-void shared_script_debug_handle(n_constant_string cStringFileName)
-{
-    
-}
-
-// Not used in Simulated War
-n_uint shared_max_fps(void)
-{
-    return 60;
-}
-
-
-#ifndef	_WIN32
-
-n_int sim_thread_console_quit(void)
-{
-    return 0;
-}
-
-#endif
-
