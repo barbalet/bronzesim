@@ -92,9 +92,6 @@ class CoreGraphicsView: NSView {
         let dimY = Int(dirtyRect.height)
         let dimX = Int(dirtyRect.width)
         
-//        if #available(macOS 14, *) {
-//            dimY -= 28
-//        }
         let  colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB();
         let optionalDrawRef: CGContext? = CGContext.init(data: brz_shared_draw(dimX, dimY), width: dimX, height: dimY, bitsPerComponent: 8, bytesPerRow: dimX * 4, space: colorSpace, bitmapInfo: UInt32(CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue))
         

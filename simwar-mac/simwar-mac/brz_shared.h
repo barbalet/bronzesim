@@ -32,13 +32,10 @@
 #ifndef SIMULATEDAPE_SHARED_H
 #define SIMULATEDAPE_SHARED_H
 
+void brz_shared_init(unsigned long random);
 
-#include "./toolkit/toolkit.h"
-
-void brz_shared_init(n_uint random);
-
-n_byte * brz_shared_draw(n_int dim_x, n_int dim_y);
-void brz_shared_cycle(n_uint ticks);
+unsigned char * brz_shared_draw(long dim_x, long dim_y);
+void brz_shared_cycle(unsigned long ticks);
 
 void brz_shared_close(void);
 
