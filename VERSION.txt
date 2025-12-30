@@ -1,0 +1,8 @@
+bronzesim + bronzevis
+Fractal heightmap + sea-level rendering
+Version: v2.1
+Date: 2025-12-30
+Notes:
+- Fix: bronzevis compile error (declare g_show_height)
+- bronzevis: --show-height debug toggle (grayscale height)
+- height-based color ramp rendering; special overlays still visible

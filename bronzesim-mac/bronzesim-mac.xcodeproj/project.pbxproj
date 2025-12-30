@@ -17,6 +17,7 @@
 		4AF899D62F00A8290069B74A /* brz_world.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AF899D52F00A8290069B74A /* brz_world.c */; };
 		4AF899D72F00A8290069B74A /* brz_agent.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AF899D02F00A8290069B74A /* brz_agent.c */; };
 		4AF899D82F00A8290069B74A /* brz_settlement.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AF899D22F00A8290069B74A /* brz_settlement.c */; };
+		4AF899D92F00A8290069B74A /* brz_land.c in Sources */ = {isa = PBXBuildFile; fileRef = 4AF899DA2F00A8290069B74A /* brz_land.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -53,6 +54,7 @@
 		4AF899D32F00A8290069B74A /* brz_types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_types.h; path = ../src/brz_types.h; sourceTree = SOURCE_ROOT; };
 		4AF899D42F00A8290069B74A /* brz_world.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = brz_world.h; path = ../src/brz_world.h; sourceTree = SOURCE_ROOT; };
 		4AF899D52F00A8290069B74A /* brz_world.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_world.c; path = ../src/brz_world.c; sourceTree = SOURCE_ROOT; };
+		4AF899DA2F00A8290069B74A /* brz_land.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = brz_land.c; path = ../src/brz_land.c; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -84,6 +86,7 @@
 				4AF899D32F00A8290069B74A /* brz_types.h */,
 				4AF899D42F00A8290069B74A /* brz_world.h */,
 				4AF899D52F00A8290069B74A /* brz_world.c */,
+				4AF899DA2F00A8290069B74A /* brz_land.c */,
 				4A86760A2EFC9DB0002C7C83 /* brz_dsl.h */,
 				4A86760B2EFC9DB0002C7C83 /* brz_dsl.c */,
 				4A86760C2EFC9DB0002C7C83 /* brz_kinds.h */,
@@ -178,6 +181,7 @@
 				4A8676192EFC9DB0002C7C83 /* main.c in Sources */,
 				4A86761A2EFC9DB0002C7C83 /* brz_dsl.c in Sources */,
 				4AF899D62F00A8290069B74A /* brz_world.c in Sources */,
+				4AF899D92F00A8290069B74A /* brz_land.c in Sources */,
 				4AF899D72F00A8290069B74A /* brz_agent.c in Sources */,
 				4AF899D82F00A8290069B74A /* brz_settlement.c in Sources */,
 				4A86761B2EFC9DB0002C7C83 /* brz_sim.c in Sources */,

@@ -22,6 +22,8 @@ enum {
 typedef struct {
     int w, h;
     uint16_t* tags;   /* [w*h] */
+    uint8_t*  height; /* [w*h] heightmap sample in [0,255] */
+    uint8_t   sea_level; /* waterline threshold in [0,255] */
     double*   res;    /* [w*h*res_n] */
     double*   cap;    /* [w*h*res_n] */
     double*   regen;  /* [res_n] */
@@ -33,6 +35,7 @@ void brz_world_free(BrzWorld* world);
 void brz_world_step_regen(BrzWorld* world, size_t res_n);
 
 uint16_t brz_world_tags_at(const BrzWorld* world, BrzPos p);
+uint8_t  brz_world_height_at(const BrzWorld* world, BrzPos p);
 double   brz_world_take(BrzWorld* world, BrzPos p, size_t res_n, int rid, double amt);
 double   brz_world_peek(const BrzWorld* world, BrzPos p, size_t res_n, int rid);
 

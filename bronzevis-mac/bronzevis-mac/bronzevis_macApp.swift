@@ -33,6 +33,12 @@ import SwiftUI
 
 @main
 struct bronzevis_macApp: App {
+    init() {
+        if CommandLine.arguments.contains("--show-height") {
+            brz_shared_set_show_height(1)
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

@@ -3,6 +3,7 @@
 #include "brz_kinds.h"
 #include "brz_util.h"
 #include "brz_settlement.h"
+#include "brz_land.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -32,10 +33,38 @@ int brz_world_init(BrzWorld* world, const ParsedConfig* cfg, int w, int h, size_
     memset(world, 0, sizeof(*world));
     world->w = w; world->h = h;
     world->tags  = (uint16_t*)calloc((size_t)w*h, sizeof(uint16_t));
+    world->height= (uint8_t*)calloc((size_t)w*h, sizeof(uint8_t));
     world->res   = (double*)calloc((size_t)w*h*res_n, sizeof(double));
     world->cap   = (double*)calloc((size_t)w*h*res_n, sizeof(double));
     world->regen = (double*)calloc(res_n, sizeof(double));
-    if(!world->tags || !world->res || !world->cap || !world->regen) return 1;
+    if(!world->tags || !world->height || !world->res || !world->cap || !world->regen) return 1;
+
+    /* sea level: default 128, override with param "sea_level" if present */
+    uint8_t sea = 128;
+    for(size_t i=0;i<cfg->params.len;i++){
+        const ParamDef* p = (const ParamDef*)brz_vec_cat(&cfg->params, i);
+        if(p->key && brz_streq(p->key, "sea_level") && !p->has_svalue){
+            int iv = (int)(p->value);
+            if(iv < 0) iv = 0;
+            if(iv > 255) iv = 255;
+            sea = (uint8_t)iv;
+            break;
+        }
+    }
+    world->sea_level = sea;
+
+    /* Build a deterministic fractal heightmap (512x512), then sample it to the
+       requested world size.
+
+       Seeds: use cfg->seed when provided, else fall back to a fixed constant to
+       preserve determinism.
+    */
+    BrzLand land;
+    uint32_t s = (cfg->seed ? (uint32_t)cfg->seed : 0xC0FFEEu);
+    int r1 = (int)(s & 0xFFFFu);
+    int r2 = (int)((s >> 16) & 0xFFFFu);
+    brz_land_seed(&land, r1, r2);
+    brz_land_generate(&land);
 
     /* regen: read <resname>_renew params if present, else 0.01 */
     for(size_t rid=0; rid<res_n; rid++){
@@ -54,18 +83,38 @@ int brz_world_init(BrzWorld* world, const ParsedConfig* cfg, int w, int h, size_
         world->regen[rid] = v;
     }
 
-    /* tags and initial resources/caps */
+    /* tags, heights, and initial resources/caps */
     for(int y=0;y<h;y++){
         for(int x=0;x<w;x++){
             uint16_t t = 0;
-            if(y < h/5) t |= BRZ_TAG_COAST;
-            else t |= BRZ_TAG_FOREST;
+
+            /* Sample from the 512x512 fractal map. */
+            int sx = (int)((int64_t)x * BRZ_LAND_DIM / (w>0?w:1));
+            int sy = (int)((int64_t)y * BRZ_LAND_DIM / (h>0?h:1));
+            uint8_t height = brz_land_height_at(&land, sx, sy);
+            world->height[y*w+x] = height;
+
+            if(height < sea){
+                /* Below waterline -> water tile. */
+                t |= BRZ_TAG_COAST;
+            } else {
+                /* Above waterline -> land tile; choose a coarse biome tag.
+                   These are intentionally simple heuristics; the DSL-driven
+                   sim can evolve more sophisticated interpretations later.
+                */
+                uint8_t dh = (uint8_t)(height - sea);
+                if(dh < 40) t |= BRZ_TAG_FIELD;      /* lowlands */
+                else if(dh < 140) t |= BRZ_TAG_FOREST; /* midlands */
+                /* highlands: leave as default '^' */
+            }
 
             /* scatter clay pits */
-            if(((x*73856093u) ^ (y*19349663u) ^ (cfg->seed?cfg->seed:0xC0FFEEu)) % 97u == 0u) t |= BRZ_TAG_CLAYPIT;
-            /* scatter mines */
-            if(((x*83492791u) ^ (y*2654435761u) ^ (cfg->seed?cfg->seed:0xC0FFEEu)) % 173u == 0u) t |= BRZ_TAG_MINE_CU;
-            if(((x*2654435761u) ^ (y*83492791u) ^ (cfg->seed?cfg->seed:0xC0FFEEu)) % 199u == 0u) t |= BRZ_TAG_MINE_SN;
+            if(!(t & BRZ_TAG_COAST)){
+                if(((x*73856093u) ^ (y*19349663u) ^ s) % 97u == 0u) t |= BRZ_TAG_CLAYPIT;
+                /* scatter mines */
+                if(((x*83492791u) ^ (y*2654435761u) ^ s) % 173u == 0u) t |= BRZ_TAG_MINE_CU;
+                if(((x*2654435761u) ^ (y*83492791u) ^ s) % 199u == 0u) t |= BRZ_TAG_MINE_SN;
+            }
 
             world->tags[y*w+x] = t;
 
@@ -90,6 +139,7 @@ int brz_world_init(BrzWorld* world, const ParsedConfig* cfg, int w, int h, size_
 void brz_world_free(BrzWorld* world){
     if(!world) return;
     free(world->tags);
+    free(world->height);
     free(world->res);
     free(world->cap);
     free(world->regen);
@@ -116,6 +166,12 @@ void brz_world_step_regen(BrzWorld* world, size_t res_n){
 uint16_t brz_world_tags_at(const BrzWorld* world, BrzPos p){
     if(p.x<0||p.y<0||p.x>=world->w||p.y>=world->h) return 0;
     return world->tags[p.y*world->w+p.x];
+}
+
+uint8_t brz_world_height_at(const BrzWorld* world, BrzPos p){
+    if(!world) return 0;
+    if(p.x<0||p.y<0||p.x>=world->w||p.y>=world->h) return 0;
+    return world->height[p.y*world->w+p.x];
 }
 
 double brz_world_take(BrzWorld* world, BrzPos p, size_t res_n, int rid, double amt){

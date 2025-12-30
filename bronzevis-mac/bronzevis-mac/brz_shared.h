@@ -36,6 +36,10 @@ void brz_shared_init(unsigned long random);
 
 
 
+
+/* Enable grayscale height debug rendering (1 = on, 0 = off). */
+void brz_shared_set_show_height(int enabled);
+
 /* Load a BRONZESIM scenario (.bronze) and build a realtime world.
    Returns 0 on success, non-zero on failure (errors printed to stderr). */
 int brz_shared_load_config(const char* path);

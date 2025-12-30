@@ -104,6 +104,19 @@ typedef struct {
 
 static BrzRealtime rt;
 
+/*
+ * Debug rendering toggle:
+ *   0 = normal height-based ramp (water/plains/hills/peaks)
+ *   1 = show raw height as grayscale (useful for validating the fractal map)
+ */
+static int g_show_height = 0;
+
+void brz_shared_set_show_height(int enabled)
+{
+    g_show_height = enabled ? 1 : 0;
+}
+
+
 /* ---------------- framebuffer helpers ---------------- */
 
 static void rt_clear_frame(unsigned char r, unsigned char g, unsigned char b)
@@ -150,54 +163,94 @@ static void fill_rect(int x0, int y0, int w, int h, unsigned char r, unsigned ch
     }
 }
 
-static void glyph_color(uint16_t tags, unsigned char* r, unsigned char* g, unsigned char* b)
+static inline unsigned char lerp_u8(unsigned char a, unsigned char b, unsigned t256)
 {
-    /* Priority ordering: coast > fire > mines > clay > forest > field > default */
+    /* Linear interpolation with t in [0,256]. */
+    unsigned v = (unsigned)a * (256u - t256) + (unsigned)b * t256;
+    return (unsigned char)(v >> 8);
+}
 
-    if(tags & BRZ_TAG_COAST)   {
-        /* Deep coastal blue / sea water */
-        *r =  40; *g =  90; *b = 160;
+static void glyph_color_special(uint16_t tags, unsigned char* r, unsigned char* g, unsigned char* b)
+{
+    /* Priority ordering (overlays): fire > mines > clay.
+       These render on top of the base height-based ramp. */
+
+    if(tags & BRZ_TAG_FIRE)    { /* Bright orange / flame */        *r = 220; *g = 120; *b =  40; return; }
+    if(tags & BRZ_TAG_MINE_CU) { /* Cool gray-blue / copper ore */   *r = 120; *g = 120; *b = 140; return; }
+    if(tags & BRZ_TAG_MINE_SN) { /* Darker bluish gray / tin ore */  *r = 110; *g = 110; *b = 130; return; }
+    if(tags & BRZ_TAG_CLAYPIT) { /* Reddish brown / clay soil */     *r = 160; *g =  80; *b =  70; return; }
+
+    /* No special overlay. Caller should fall back to base color. */
+    *r = *g = *b = 0;
+}
+
+static void height_ramp_color(uint16_t tags, uint8_t h, uint8_t sea, int show_height,
+                              unsigned char* r, unsigned char* g, unsigned char* b)
+{
+    /* Debug mode: show raw height as grayscale, with a crisp waterline. */
+    if(show_height){
+        *r = *g = *b = (unsigned char)h;
+        if(h == sea || h + 1u == sea || sea + 1u == h){
+            *r = 255; *g = 80; *b = 80; /* waterline highlight */
+        }
         return;
     }
 
-    if(tags & BRZ_TAG_FIRE)    {
-        /* Bright orange / flame */
-        *r = 220; *g = 120; *b =  40;
+    /* Base ramp: deep water -> shallow/coast -> plains -> hills -> peaks */
+    if(h < sea){
+        /* Water: deeper = darker, near coast = lighter. */
+        unsigned depth = (unsigned)(sea - h);               /* 1..sea */
+        unsigned t256 = (sea > 0) ? (depth * 256u / (unsigned)sea) : 256u; /* 0..256 */
+        unsigned char deep_r=10, deep_g=35, deep_b=80;
+        unsigned char shallow_r=60, shallow_g=140, shallow_b=200;
+        /* invert so t=0 means deep */
+        t256 = 256u - t256;
+        *r = lerp_u8(deep_r, shallow_r, t256);
+        *g = lerp_u8(deep_g, shallow_g, t256);
+        *b = lerp_u8(deep_b, shallow_b, t256);
+
+        /* If explicitly tagged coast, push a little brighter. */
+        if(tags & BRZ_TAG_COAST){
+            *r = (unsigned char)((*r + 20u) > 255u ? 255u : (*r + 20u));
+            *g = (unsigned char)((*g + 20u) > 255u ? 255u : (*g + 20u));
+            *b = (unsigned char)((*b + 20u) > 255u ? 255u : (*b + 20u));
+        }
         return;
     }
 
-    if(tags & BRZ_TAG_MINE_CU) {
-        /* Cool gray-blue / copper ore rock */
-        *r = 120; *g = 120; *b = 140;
-        return;
+    /* Land */
+    unsigned elev = (unsigned)(h - sea);                    /* 0..255-sea */
+    unsigned denom = (sea < 255) ? (unsigned)(255u - sea) : 1u;
+    unsigned t256 = (elev * 256u) / denom;                  /* 0..256 */
+
+    /* Piecewise:
+       - 0..160: plains green -> dry hills brown
+       - 160..256: hills brown -> rocky peak gray */
+    if(t256 <= 160u){
+        unsigned char plains_r=60, plains_g=160, plains_b=80;
+        unsigned char hills_r =140, hills_g =120, hills_b =80;
+        unsigned local = t256 * 256u / 160u; /* 0..256 */
+        *r = lerp_u8(plains_r, hills_r, local);
+        *g = lerp_u8(plains_g, hills_g, local);
+        *b = lerp_u8(plains_b, hills_b, local);
+    } else {
+        unsigned char hills_r =140, hills_g =120, hills_b =80;
+        unsigned char peak_r  =210, peak_g  =210, peak_b  =210;
+        unsigned local = (t256 - 160u) * 256u / (256u - 160u); /* 0..256 */
+        *r = lerp_u8(hills_r, peak_r, local);
+        *g = lerp_u8(hills_g, peak_g, local);
+        *b = lerp_u8(hills_b, peak_b, local);
     }
 
-    if(tags & BRZ_TAG_MINE_SN) {
-        /* Slightly darker bluish gray / tin ore rock */
-        *r = 110; *g = 110; *b = 130;
-        return;
+    /* Slight biome tint from tags (optional, subtle). */
+    if(tags & BRZ_TAG_FOREST){
+        *g = (unsigned char)((*g + 18u) > 255u ? 255u : (*g + 18u));
+        if(*r > 8) *r = (unsigned char)(*r - 8u);
     }
-
-    if(tags & BRZ_TAG_CLAYPIT) {
-        /* Reddish brown / exposed clay soil */
-        *r = 160; *g =  80; *b =  70;
-        return;
+    if(tags & BRZ_TAG_FIELD){
+        *r = (unsigned char)((*r + 10u) > 255u ? 255u : (*r + 10u));
+        *g = (unsigned char)((*g + 6u)  > 255u ? 255u : (*g + 6u));
     }
-
-    if(tags & BRZ_TAG_FOREST)  {
-        /* Deep green / woodland */
-        *r =  40; *g = 110; *b =  60;
-        return;
-    }
-
-    if(tags & BRZ_TAG_FIELD)   {
-        /* Yellow-green / grassland or crops */
-        *r = 150; *g = 160; *b =  70;
-        return;
-    }
-
-    /* Neutral dark gray / unknown or barren terrain */
-    *r = 60; *g = 60; *b = 60;
 }
 
 static unsigned hash_u32(const char* s)
@@ -338,14 +391,25 @@ static void rt_render(void)
     /* Geography */
     for(int y=0; y<rt.map_h; y++){
         for(int x=0; x<rt.map_w; x++){
-            uint16_t tags = rt.world.tags ? rt.world.tags[y*rt.map_w + x] : 0;
+            size_t idx = (size_t)y*(size_t)rt.map_w + (size_t)x;
+            uint16_t tags = rt.world.tags ? rt.world.tags[idx] : 0;
+            uint8_t  hgt  = rt.world.height ? rt.world.height[idx] : 0;
+            uint8_t  sea  = rt.world.sea_level;
+
             unsigned char r,g,b;
-            glyph_color(tags, &r, &g, &b);
+            height_ramp_color(tags, hgt, sea, g_show_height, &r, &g, &b);
+
+            /* Overlay special features (mines, clay, fire) on top of the height ramp. */
+            unsigned char sr,sg,sb;
+            glyph_color_special(tags, &sr, &sg, &sb);
+            if(sr || sg || sb){
+                r = sr; g = sg; b = sb;
+            }
+
             fill_rect(off_x + x*tile_px, off_y + y*tile_px, tile_px, tile_px, r, g, b);
         }
     }
-
-    /* Settlements */
+/* Settlements */
     for(int i=0; i<rt.sett_n; i++){
         int sx = off_x + rt.setts[i].pos.x * tile_px;
         int sy = off_y + rt.setts[i].pos.y * tile_px;
