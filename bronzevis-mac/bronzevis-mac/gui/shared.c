@@ -36,13 +36,13 @@
 
 /* Vendored BRONZESIM core.
    shared.c lives in bronzevis-mac/bronzevis-mac/gui/, so ../bronzesim/src is adjacent. */
-#include "../bronzesim/src/brz_parser.h"
-#include "../bronzesim/src/brz_dsl.h"
-#include "../bronzesim/src/brz_kinds.h"
-#include "../bronzesim/src/brz_world.h"
-#include "../bronzesim/src/brz_settlement.h"
-#include "../bronzesim/src/brz_agent.h"
-#include "../bronzesim/src/brz_util.h"
+#include "../../../src/brz_parser.h"
+#include "../../../src/brz_dsl.h"
+#include "../../../src/brz_kinds.h"
+#include "../../../src/brz_world.h"
+#include "../../../src/brz_settlement.h"
+#include "../../../src/brz_agent.h"
+#include "../../../src/brz_util.h"
 
 /* Fixed output surface (requested): 1024 x 800 RGBA(ish)
    Swift uses byteOrder32Big | noneSkipFirst -> memory layout is X R G B. */

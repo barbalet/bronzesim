@@ -1,9 +1,6 @@
 # Changelog
 
-## v2.1 (2025-12-30)
-- **Fix:** `bronzevis` compile error by declaring `g_show_height` in `gui/shared.c`.
-
-## v2.0 (2025-12-30)
-- `bronzesim`: fractal landscape generation (heightmap + sea level classification).
-- `bronzevis`: height-based color ramp rendering (deep water → coast → plains → hills → peaks).
-- `bronzevis`: optional `--show-height` debug mode (grayscale height).
+## v2.5 (2025-12-30)
+- Unify sources: remove duplicate `bronzevis-mac/bronzevis-mac/bronzesim/src` copy.
+- Bronzevis Xcode project now compiles shared simulation C sources directly from top-level `src/` (via explicit PBX file references), excluding `main.c`.
+- Cleaned build artifacts from `src/` (no *.o or binaries in repo).
