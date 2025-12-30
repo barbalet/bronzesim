@@ -153,13 +153,50 @@ static void fill_rect(int x0, int y0, int w, int h, unsigned char r, unsigned ch
 static void glyph_color(uint16_t tags, unsigned char* r, unsigned char* g, unsigned char* b)
 {
     /* Priority ordering: coast > fire > mines > clay > forest > field > default */
-    if(tags & BRZ_TAG_COAST)   { *r =  40; *g =  90; *b = 160; return; }
-    if(tags & BRZ_TAG_FIRE)    { *r = 220; *g = 120; *b =  40; return; }
-    if(tags & BRZ_TAG_MINE_CU) { *r = 120; *g = 120; *b = 140; return; }
-    if(tags & BRZ_TAG_MINE_SN) { *r = 110; *g = 110; *b = 130; return; }
-    if(tags & BRZ_TAG_CLAYPIT) { *r = 160; *g =  80; *b =  70; return; }
-    if(tags & BRZ_TAG_FOREST)  { *r =  40; *g = 110; *b =  60; return; }
-    if(tags & BRZ_TAG_FIELD)   { *r = 150; *g = 160; *b =  70; return; }
+
+    if(tags & BRZ_TAG_COAST)   {
+        /* Deep coastal blue / sea water */
+        *r =  40; *g =  90; *b = 160;
+        return;
+    }
+
+    if(tags & BRZ_TAG_FIRE)    {
+        /* Bright orange / flame */
+        *r = 220; *g = 120; *b =  40;
+        return;
+    }
+
+    if(tags & BRZ_TAG_MINE_CU) {
+        /* Cool gray-blue / copper ore rock */
+        *r = 120; *g = 120; *b = 140;
+        return;
+    }
+
+    if(tags & BRZ_TAG_MINE_SN) {
+        /* Slightly darker bluish gray / tin ore rock */
+        *r = 110; *g = 110; *b = 130;
+        return;
+    }
+
+    if(tags & BRZ_TAG_CLAYPIT) {
+        /* Reddish brown / exposed clay soil */
+        *r = 160; *g =  80; *b =  70;
+        return;
+    }
+
+    if(tags & BRZ_TAG_FOREST)  {
+        /* Deep green / woodland */
+        *r =  40; *g = 110; *b =  60;
+        return;
+    }
+
+    if(tags & BRZ_TAG_FIELD)   {
+        /* Yellow-green / grassland or crops */
+        *r = 150; *g = 160; *b =  70;
+        return;
+    }
+
+    /* Neutral dark gray / unknown or barren terrain */
     *r = 60; *g = 60; *b = 60;
 }
 
