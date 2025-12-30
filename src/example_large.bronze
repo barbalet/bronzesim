@@ -4,6 +4,8 @@
 
 world {
     seed 90210;
+    sim_map_w 160
+    sim_map_h 80
     years 300;
     population 800;
     terrain coast;

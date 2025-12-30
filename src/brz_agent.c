@@ -413,6 +413,23 @@ static void agent_auto_eat(BrzAgent* a, const ParsedConfig* cfg, BrzSettlement* 
     }
 }
 
+/* auto-rest: when at home settlement, reduce fatigue (keeps agents active long-term) */
+static void agent_auto_rest(BrzAgent* a, BrzSettlement* setts, int sett_n)
+{
+    if(sett_n<=0) return;
+    int si = a->home_settlement;
+    if(si<0 || si>=sett_n) return;
+
+    if(agent_at_settlement(a, &setts[si])){
+        /* a little recovery every day at home */
+        a->fatigue -= 0.04;
+        /* if exhausted, recover more aggressively */
+        if(a->fatigue > 0.85) a->fatigue -= 0.10;
+        if(a->fatigue < 0.0) a->fatigue = 0.0;
+    }
+}
+
+
 /* rule selection: first matching 'when' or fallback first */
 
 /* weighted rule selection among matching whens (or all if no when) */
@@ -493,9 +510,10 @@ void brz_agents_free(BrzAgent* agents, int agent_n){
 void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
                     BrzSettlement* setts, int sett_n, BrzRng* rng)
 {
-    /* baseline drift */
+    /* baseline drift (daily metabolism + rest)
+       NOTE: fatigue naturally recovers a bit each day; hard work re-adds fatigue. */
     a->hunger  = clamp01(a->hunger + 0.02);
-    a->fatigue = clamp01(a->fatigue + 0.01);
+    a->fatigue = clamp01(a->fatigue + 0.01 - 0.015);
 
     /* execute one rule per day */
     const RuleDef* r = pick_rule(a, cfg, rng);
@@ -516,6 +534,7 @@ void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
     a->pos.x = brz_clamp_i(a->pos.x, 0, world->w-1);
     a->pos.y = brz_clamp_i(a->pos.y, 0, world->h-1);
 
+    agent_auto_rest(a, setts, sett_n);
     agent_auto_eat(a, cfg, setts, sett_n);
 
     /* deliver some gathered food to home settlement when at home */

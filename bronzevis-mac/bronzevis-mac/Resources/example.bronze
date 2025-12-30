@@ -31,7 +31,19 @@ kinds {
 
 # BRONZESIM scriptable occupations demo
 
-world { seed 1337 }
+world {
+    seed 1337
+    sim_map_w 160
+    sim_map_h 80
+}
+
+agents {
+    count 900
+}
+
+settlements {
+    count 12
+}
 
 sim {
   days 180
@@ -40,22 +52,20 @@ sim {
   map_every 0
 }
 
-agents { count 220 }
-settlements { count 6 }
 
 resources {
-  fish_renew 0.08
-  grain_renew 0.06
-  wood_renew 0.03
+  fish_renew 0.12
+  grain_renew 0.09
+  wood_renew 0.05
   clay_renew 0.02
   copper_renew 0.005
   tin_renew 0.002
-  fire_renew 0.10
-  plant_fiber_renew 0.04
-  cattle_renew 0.01
-  sheep_renew 0.01
-  pig_renew 0.01
-  charcoal_renew 0.005
+  fire_renew 0.12
+  plant_fiber_renew 0.06
+  cattle_renew 0.02
+  sheep_renew 0.02
+  pig_renew 0.02
+  charcoal_renew 0.02
   religion_renew 0.002
   tribalism_renew 0.0005
 }

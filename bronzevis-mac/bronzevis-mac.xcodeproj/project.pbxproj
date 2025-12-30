@@ -7,33 +7,32 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		156D44D4CCA648EEB2F9A623 /* brz_vec.c in Sources */ = {isa = PBXBuildFile; fileRef = 3AB8772ADD224D3796F1E280 /* brz_vec.c */; };
-		4468049510114727A7992E00 /* brz_util.c in Sources */ = {isa = PBXBuildFile; fileRef = D46F76B63B7F47B7A06D9651 /* brz_util.c */; };
-		F7E6EC250E5047DD910F7F02 /* brz_kinds.c in Sources */ = {isa = PBXBuildFile; fileRef = E92C5C88B2DC4FB0B6714993 /* brz_kinds.c */; };
-		88F55431449B44B09BB8A787 /* brz_dsl.c in Sources */ = {isa = PBXBuildFile; fileRef = 76C136CFEC3B4593B1E51CBC /* brz_dsl.c */; };
-		F31BB52AB8D3423CBFF866AF /* brz_parser.c in Sources */ = {isa = PBXBuildFile; fileRef = A2805F7636E74712A2999914 /* brz_parser.c */; };
-		95419311458A4547B1F00410 /* brz_sim.c in Sources */ = {isa = PBXBuildFile; fileRef = D25D50337D9C4FE98C01885D /* brz_sim.c */; };
-		83E04F9F075B4A78BAB7F364 /* brz_world.c in Sources */ = {isa = PBXBuildFile; fileRef = DDB6D4F4478847E2BD753338 /* brz_world.c */; };
-		64690008CB0D4DC1BC8BCDAC /* brz_land.c in Sources */ = {isa = PBXBuildFile; fileRef = 94CC46E0BFC24D538130E384 /* brz_land.c */; };
-		FA5564A66D394EDFBF08A2CB /* brz_settlement.c in Sources */ = {isa = PBXBuildFile; fileRef = 34146457DE0E48A589876821 /* brz_settlement.c */; };
-		08B5B97A091D484BB8F4B9E8 /* brz_agent.c in Sources */ = {isa = PBXBuildFile; fileRef = 4499896C0D964D8AA3688885 /* brz_agent.c */; };
-		34FED37137B04CDD935DC242 /* shared.c in Sources */ = {isa = PBXBuildFile; fileRef = 332BEBAD3B874BA18987A45A /* shared.c */; };
+		08B5B97A091D484BB8F4B9E8 /* ../src/brz_agent.c in Sources */ = {isa = PBXBuildFile; fileRef = 4499896C0D964D8AA3688885 /* ../src/brz_agent.c */; };
+		156D44D4CCA648EEB2F9A623 /* ../src/brz_vec.c in Sources */ = {isa = PBXBuildFile; fileRef = 3AB8772ADD224D3796F1E280 /* ../src/brz_vec.c */; };
+		34FED37137B04CDD935DC242 /* bronzevis-mac/gui/shared.c in Sources */ = {isa = PBXBuildFile; fileRef = 332BEBAD3B874BA18987A45A /* bronzevis-mac/gui/shared.c */; };
+		4468049510114727A7992E00 /* ../src/brz_util.c in Sources */ = {isa = PBXBuildFile; fileRef = D46F76B63B7F47B7A06D9651 /* ../src/brz_util.c */; };
+		64690008CB0D4DC1BC8BCDAC /* ../src/brz_land.c in Sources */ = {isa = PBXBuildFile; fileRef = 94CC46E0BFC24D538130E384 /* ../src/brz_land.c */; };
+		83E04F9F075B4A78BAB7F364 /* ../src/brz_world.c in Sources */ = {isa = PBXBuildFile; fileRef = DDB6D4F4478847E2BD753338 /* ../src/brz_world.c */; };
+		88F55431449B44B09BB8A787 /* ../src/brz_dsl.c in Sources */ = {isa = PBXBuildFile; fileRef = 76C136CFEC3B4593B1E51CBC /* ../src/brz_dsl.c */; };
+		95419311458A4547B1F00410 /* ../src/brz_sim.c in Sources */ = {isa = PBXBuildFile; fileRef = D25D50337D9C4FE98C01885D /* ../src/brz_sim.c */; };
+		F31BB52AB8D3423CBFF866AF /* ../src/brz_parser.c in Sources */ = {isa = PBXBuildFile; fileRef = A2805F7636E74712A2999914 /* ../src/brz_parser.c */; };
+		F7E6EC250E5047DD910F7F02 /* ../src/brz_kinds.c in Sources */ = {isa = PBXBuildFile; fileRef = E92C5C88B2DC4FB0B6714993 /* ../src/brz_kinds.c */; };
+		FA5564A66D394EDFBF08A2CB /* ../src/brz_settlement.c in Sources */ = {isa = PBXBuildFile; fileRef = 34146457DE0E48A589876821 /* ../src/brz_settlement.c */; };
 /* End PBXBuildFile section */
 
-
 /* Begin PBXFileReference section */
+		332BEBAD3B874BA18987A45A /* bronzevis-mac/gui/shared.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "bronzevis-mac/gui/shared.c"; sourceTree = "<group>"; };
+		34146457DE0E48A589876821 /* ../src/brz_settlement.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ../src/brz_settlement.c; sourceTree = "<group>"; };
+		3AB8772ADD224D3796F1E280 /* ../src/brz_vec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ../src/brz_vec.c; sourceTree = "<group>"; };
+		4499896C0D964D8AA3688885 /* ../src/brz_agent.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ../src/brz_agent.c; sourceTree = "<group>"; };
 		4A0A23072F02FC1500BBE95D /* bronzevis-mac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "bronzevis-mac.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		3AB8772ADD224D3796F1E280 /* brz_vec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../src/brz_vec.c"; sourceTree = "<group>"; };
-		D46F76B63B7F47B7A06D9651 /* brz_util.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../src/brz_util.c"; sourceTree = "<group>"; };
-		E92C5C88B2DC4FB0B6714993 /* brz_kinds.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../src/brz_kinds.c"; sourceTree = "<group>"; };
-		76C136CFEC3B4593B1E51CBC /* brz_dsl.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../src/brz_dsl.c"; sourceTree = "<group>"; };
-		A2805F7636E74712A2999914 /* brz_parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../src/brz_parser.c"; sourceTree = "<group>"; };
-		D25D50337D9C4FE98C01885D /* brz_sim.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../src/brz_sim.c"; sourceTree = "<group>"; };
-		DDB6D4F4478847E2BD753338 /* brz_world.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../src/brz_world.c"; sourceTree = "<group>"; };
-		94CC46E0BFC24D538130E384 /* brz_land.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../src/brz_land.c"; sourceTree = "<group>"; };
-		34146457DE0E48A589876821 /* brz_settlement.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../src/brz_settlement.c"; sourceTree = "<group>"; };
-		4499896C0D964D8AA3688885 /* brz_agent.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../src/brz_agent.c"; sourceTree = "<group>"; };
-		332BEBAD3B874BA18987A45A /* shared.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "bronzevis-mac/gui/shared.c"; sourceTree = "<group>"; };
+		76C136CFEC3B4593B1E51CBC /* ../src/brz_dsl.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ../src/brz_dsl.c; sourceTree = "<group>"; };
+		94CC46E0BFC24D538130E384 /* ../src/brz_land.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ../src/brz_land.c; sourceTree = "<group>"; };
+		A2805F7636E74712A2999914 /* ../src/brz_parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ../src/brz_parser.c; sourceTree = "<group>"; };
+		D25D50337D9C4FE98C01885D /* ../src/brz_sim.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ../src/brz_sim.c; sourceTree = "<group>"; };
+		D46F76B63B7F47B7A06D9651 /* ../src/brz_util.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ../src/brz_util.c; sourceTree = "<group>"; };
+		DDB6D4F4478847E2BD753338 /* ../src/brz_world.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ../src/brz_world.c; sourceTree = "<group>"; };
+		E92C5C88B2DC4FB0B6714993 /* ../src/brz_kinds.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ../src/brz_kinds.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -60,17 +59,17 @@
 			children = (
 				4A0A23092F02FC1500BBE95D /* bronzevis-mac */,
 				4A0A23082F02FC1500BBE95D /* Products */,
-				3AB8772ADD224D3796F1E280 /* brz_vec.c */,
-				D46F76B63B7F47B7A06D9651 /* brz_util.c */,
-				E92C5C88B2DC4FB0B6714993 /* brz_kinds.c */,
-				76C136CFEC3B4593B1E51CBC /* brz_dsl.c */,
-				A2805F7636E74712A2999914 /* brz_parser.c */,
-				D25D50337D9C4FE98C01885D /* brz_sim.c */,
-				DDB6D4F4478847E2BD753338 /* brz_world.c */,
-				94CC46E0BFC24D538130E384 /* brz_land.c */,
-				34146457DE0E48A589876821 /* brz_settlement.c */,
-				4499896C0D964D8AA3688885 /* brz_agent.c */,
-				332BEBAD3B874BA18987A45A /* shared.c */,
+				3AB8772ADD224D3796F1E280 /* ../src/brz_vec.c */,
+				D46F76B63B7F47B7A06D9651 /* ../src/brz_util.c */,
+				E92C5C88B2DC4FB0B6714993 /* ../src/brz_kinds.c */,
+				76C136CFEC3B4593B1E51CBC /* ../src/brz_dsl.c */,
+				A2805F7636E74712A2999914 /* ../src/brz_parser.c */,
+				D25D50337D9C4FE98C01885D /* ../src/brz_sim.c */,
+				DDB6D4F4478847E2BD753338 /* ../src/brz_world.c */,
+				94CC46E0BFC24D538130E384 /* ../src/brz_land.c */,
+				34146457DE0E48A589876821 /* ../src/brz_settlement.c */,
+				4499896C0D964D8AA3688885 /* ../src/brz_agent.c */,
+				332BEBAD3B874BA18987A45A /* bronzevis-mac/gui/shared.c */,
 			);
 			sourceTree = "<group>";
 		};
@@ -157,17 +156,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				156D44D4CCA648EEB2F9A623 /* brz_vec.c in Sources */,
-				4468049510114727A7992E00 /* brz_util.c in Sources */,
-				F7E6EC250E5047DD910F7F02 /* brz_kinds.c in Sources */,
-				88F55431449B44B09BB8A787 /* brz_dsl.c in Sources */,
-				F31BB52AB8D3423CBFF866AF /* brz_parser.c in Sources */,
-				95419311458A4547B1F00410 /* brz_sim.c in Sources */,
-				83E04F9F075B4A78BAB7F364 /* brz_world.c in Sources */,
-				64690008CB0D4DC1BC8BCDAC /* brz_land.c in Sources */,
-				FA5564A66D394EDFBF08A2CB /* brz_settlement.c in Sources */,
-				08B5B97A091D484BB8F4B9E8 /* brz_agent.c in Sources */,
-				34FED37137B04CDD935DC242 /* shared.c in Sources */,
+				156D44D4CCA648EEB2F9A623 /* ../src/brz_vec.c in Sources */,
+				4468049510114727A7992E00 /* ../src/brz_util.c in Sources */,
+				F7E6EC250E5047DD910F7F02 /* ../src/brz_kinds.c in Sources */,
+				88F55431449B44B09BB8A787 /* ../src/brz_dsl.c in Sources */,
+				F31BB52AB8D3423CBFF866AF /* ../src/brz_parser.c in Sources */,
+				95419311458A4547B1F00410 /* ../src/brz_sim.c in Sources */,
+				83E04F9F075B4A78BAB7F364 /* ../src/brz_world.c in Sources */,
+				64690008CB0D4DC1BC8BCDAC /* ../src/brz_land.c in Sources */,
+				FA5564A66D394EDFBF08A2CB /* ../src/brz_settlement.c in Sources */,
+				08B5B97A091D484BB8F4B9E8 /* ../src/brz_agent.c in Sources */,
+				34FED37137B04CDD935DC242 /* bronzevis-mac/gui/shared.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
