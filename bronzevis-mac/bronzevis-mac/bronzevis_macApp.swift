@@ -32,7 +32,7 @@
 import SwiftUI
 
 @main
-struct simwar_macApp: App {
+struct bronzevis_macApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

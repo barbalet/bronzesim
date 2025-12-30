@@ -47,9 +47,9 @@ make
 
 Pull requests are welcome. See `CONTRIBUTING.md`.
 
-## SimWar - Graphics Rendering and Visual Representation
+## BronzeVis - Graphics Rendering and Visual Representation
 
-SimWar uses a **top-down, orthographic 2D rendering model** to visualize the simulation state in real time. The graphics are not a first-person or ground-level view; instead, they represent the simulated world as a **map-like overview**, where geography, settlements, and agents are all shown from directly above.
+BronzeVis uses a **top-down, orthographic 2D rendering model** to visualize the simulation state in real time. The graphics are not a first-person or ground-level view; instead, they represent the simulated world as a **map-like overview**, where geography, settlements, and agents are all shown from directly above.
 
 The rendering system is intentionally simple, deterministic, and tightly coupled to the simulation data structures. This allows the visual output to act as a **direct diagnostic view of the simulation state**, rather than a stylized or abstracted presentation.
 

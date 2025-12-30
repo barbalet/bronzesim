@@ -35,7 +35,7 @@
 #include <stdint.h>
 
 /* Vendored BRONZESIM core.
-   shared.c lives in simwar-mac/simwar-mac/gui/, so ../bronzesim/src is adjacent. */
+   shared.c lives in bronzevis-mac/bronzevis-mac/gui/, so ../bronzesim/src is adjacent. */
 #include "../bronzesim/src/brz_parser.h"
 #include "../bronzesim/src/brz_dsl.h"
 #include "../bronzesim/src/brz_kinds.h"
