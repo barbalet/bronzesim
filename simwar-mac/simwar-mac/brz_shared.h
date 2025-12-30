@@ -34,6 +34,11 @@
 
 void brz_shared_init(unsigned long random);
 
+
+
+/* Load a BRONZESIM scenario (.bronze) and build a realtime world.
+   Returns 0 on success, non-zero on failure (errors printed to stderr). */
+int brz_shared_load_config(const char* path);
 unsigned char * brz_shared_draw(long dim_x, long dim_y);
 void brz_shared_cycle(unsigned long ticks);
 

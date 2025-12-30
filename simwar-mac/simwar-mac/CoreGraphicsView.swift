@@ -33,7 +33,7 @@ import SwiftUI
 
 struct CoreGraphicsViewRepresentable: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
-        let view = CoreGraphicsView(frame: NSRect(x: 0, y: 0, width: 1024, height: 768))
+        let view = CoreGraphicsView(frame: NSRect(x: 0, y: 0, width: 1024, height: 800))
         view.window?.makeFirstResponder(view) // Attempt to set first responder early
         return view
     }
@@ -44,7 +44,9 @@ struct CoreGraphicsViewRepresentable: NSViewRepresentable {
 }
 
 class CoreGraphicsView: NSView {
-    override init(frame frameRect: NSRect) {
+    
+    private var scenarioLoaded: Bool = false
+override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         setupObservers()
         //setupTrackingArea()
@@ -71,6 +73,18 @@ class CoreGraphicsView: NSView {
                                                name: NSWindow.willCloseNotification,
                                                object: nil)
         brz_shared_init(UInt.random(in: 0 ..< 4294967295))
+
+        // Load example.bronze from the app bundle (if present) and build the realtime sim state.
+        if !scenarioLoaded {
+            scenarioLoaded = true
+            if let url = Bundle.main.url(forResource: "example", withExtension: "bronze") {
+                url.path.withCString { cstr in
+                    _ = brz_shared_load_config(cstr)
+                }
+            } else {
+                print("Warning: example.bronze not found in bundle")
+            }
+        }
     }
 
     @objc private func handleAppWillTerminate(notification: Notification) {
@@ -86,11 +100,12 @@ class CoreGraphicsView: NSView {
         super.draw(dirtyRect)
         
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        let time_info : UInt = UInt(CFAbsoluteTimeGetCurrent())
-        brz_shared_cycle(time_info)
+                // Pass milliseconds (UInt) to C so it can do stable step scheduling.
+        let timeMs: UInt = UInt((CFAbsoluteTimeGetCurrent() * 1000.0).rounded())
+        brz_shared_cycle(timeMs)
         context.saveGState()
-        let dimY = Int(dirtyRect.height)
-        let dimX = Int(dirtyRect.width)
+                let dimX = 1024
+        let dimY = 800
         
         let  colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB();
         let optionalDrawRef: CGContext? = CGContext.init(data: brz_shared_draw(dimX, dimY), width: dimX, height: dimY, bitsPerComponent: 8, bytesPerRow: dimX * 4, space: colorSpace, bitmapInfo: UInt32(CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue))
@@ -101,8 +116,8 @@ class CoreGraphicsView: NSView {
             context.setAllowsAntialiasing(false)
             let optionalImage: CGImage? = drawRef.makeImage()
             if let image = optionalImage {
-                let newRect = NSRect(x:0, y:0, width:CGFloat(dimX), height:CGFloat(dimY))
-                context.draw(image, in: newRect)
+                                // Draw the fixed 1024x800 framebuffer into the current view bounds.
+                context.draw(image, in: self.bounds)
             }
         }
         context.restoreGState()
