@@ -1,0 +1,5 @@
+December 31, 2025
+
+Chronic lack of debugging - particularly through visualization
+
+Improvement in visualizing agents

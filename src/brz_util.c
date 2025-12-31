@@ -10,7 +10,6 @@ bool brz_streq(const char* a, const char* b)
     return strcmp(a,b)==0;
 }
 
-
 char* brz_strdup(const char* s)
 {
     if(!s) return NULL;
@@ -20,6 +19,7 @@ char* brz_strdup(const char* s)
     memcpy(out, s, n+1);
     return out;
 }
+
 char* brz_read_entire_file(const char* path, size_t* out_size)
 {
     if(out_size) *out_size = 0;
