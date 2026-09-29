@@ -18,7 +18,7 @@ kinds {
 actions {
   action gather 1 2
   action craft 1 2
-  action trade 2 2
+  action trade 0 2
   action rest 0 0
   action move_to 1 1
   action roam 0 1
