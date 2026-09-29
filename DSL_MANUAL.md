@@ -1,82 +1,323 @@
-# BRONZESIM DSL Manual (Language Reference)
+# BronzeSim DSL Manual
 
-This document is the **formal language reference** for the BRONZESIM domain-specific language (DSL).
-The DSL defines Bronze Age scenarios (world settings, registries, vocations, tasks, and rules) and is
-compiled at runtime by the BRONZESIM parser.
+The BronzeSim DSL defines a deterministic economic and cultural scenario. A
+scenario supplies the world settings, resource ecology, recipes, settlement
+policy, and occupations; the runtime supplies generic action handlers.
 
-A key design goal is that **kinds are dynamic**: resources, items, and related “kind” categories are
-declared in DSL files (e.g., `example.Bronze`) rather than being hard-coded as C enums.
+Use [`src/example.bronze`](src/example.bronze) as the complete working
+reference. It contains the current 63-vocation Bronze Age scenario.
 
----
+## Quick start
 
-## 1. Files and responsibilities
+```bronze
+kinds {
+  resources { grain }
+  items { }
+}
 
-- `src/brz_parser.c`  
-  Tokenizes and parses the DSL file into an in-memory configuration.
+actions {
+  action gather 1 1
+}
 
-- `src/brz_dsl.c`  
-  DSL helper layer and **authoritative grammar block** (used to auto-generate parts of this manual).
+resources {
+  resource grain {
+    habitat field
+    capacity 100
+    renew 0.10
+    nutrition 0.20
+    market_target 50
+  }
+}
 
-- `src/brz_kinds.c/.h`  
-  Runtime registries for **dynamic kinds**.
+vocations {
+  vocation farmer {
+    task work {
+      gather grain 2
+    }
 
-- `src/brz_world.c/.h`, `src/brz_sim.c/.h`  
-  Simulation structures and execution.
+    rule work_when_hungry {
+      when hunger > 0.25 do work weight 1
+    }
+  }
+}
+```
 
-- `example.Bronze`  
-  A complete DSL scenario (recommended starting point).
-
----
-
-## 2. Lexical structure
-
-### 2.1 Whitespace
-
-Whitespace separates tokens and is otherwise insignificant. Newlines do not terminate statements.
-
-### 2.2 Comments
-
-The lexer accepts:
-
-- Line comments: `// comment to end of line`
-- Block comments: `/* comment */`
-
-### 2.3 Identifiers
-
-Identifiers name kinds, resources, items, vocations, tasks, rules, and variables.
-
-**Shape:**
-
-- Starts with a letter or underscore
-- Followed by letters, digits, or underscores
-- Case-sensitive
-
-Examples:
-
-- `grain`
-- `plant_fiber`
-- `bronze_axe`
-- `CoastalVillage` (allowed; convention is lower_snake_case for data)
-
-### 2.4 Literals
-
-- Integers: `0`, `12`, `-3`
-- Floats: `0.25`, `1.0`, `-2.5`
-- Strings: `"Farmer"`, `"South Coast"`
-
----
-
-## 3. Grammar (formal)
-
-This grammar is **extracted from `src/brz_dsl.c`** and injected here automatically by:
-
-- `tools/extract_dsl_grammar.py`
-- `tools/update_docs.py`
-
-To regenerate, run:
+Build and run a scenario:
 
 ```sh
-make -C src docs
+make -C src
+./src/bronzesim path/to/scenario.bronze
+```
+
+## Writing style and lexical rules
+
+Use lower_snake_case names. Identifiers start with a letter or underscore and
+may then contain letters, digits, or underscores. They are case-sensitive.
+
+Numbers are non-negative integers or decimals such as `2`, `0.25`, and `100.0`.
+Quoted strings and negative numeric literals are not supported by the current
+lexer.
+
+Use `#`, `//`, or `/* ... */` comments. Braces delimit blocks. Semicolons,
+commas, and colons are accepted as visual separators and otherwise ignored.
+
+Put one action on each physical line. The task parser uses the line break to
+find the end of an action, so this is significant:
+
+```bronze
+task work {
+  move_to field
+  gather grain 2
+}
+```
+
+## Top-level blocks
+
+| Block | Purpose |
+| --- | --- |
+| `world` | Seed and world settings. |
+| `sim` | Runtime settings such as day count and report frequency. |
+| `agents` | Agent count. |
+| `settlements` | Settlement count. |
+| `kinds` | Resource and item registries. |
+| `resources` | Resource definitions and legacy renewal values. |
+| `items` | Compatibility item registry entries. |
+| `actions` | Action names and their word-argument contracts. |
+| `recipes` | Material transformations. |
+| `settlement_policy` | Shared food, deposit, and rest behaviour. |
+| `vocations` | Occupations, tasks, and rules. |
+
+### World and runtime settings
+
+`world`, `sim`, `agents`, and `settlements` are key/value blocks. The runtime
+recognises these common values:
+
+```bronze
+world {
+  seed 1337
+  sim_map_w 160
+  sim_map_h 80
+}
+
+sim {
+  days 180
+  report_every 30
+  snapshot_every 0
+  map_every 0
+}
+
+agents { count 900 }
+settlements { count 12 }
+```
+
+The seed controls deterministic world generation and rule randomness. The same
+scenario and seed produce the same event sequence.
+
+### Kinds and items
+
+Declare resources and items before referencing them elsewhere:
+
+```bronze
+kinds {
+  resources { fish grain wood clay copper tin charcoal }
+  items { tool pot }
+}
+```
+
+The compatibility form below also registers items:
+
+```bronze
+items {
+  pot item
+  tool item
+}
+```
+
+Do not attach economic meaning to declaration order. Habitat, food value, and
+market targets are properties of resource definitions.
+
+### Resources
+
+Use a full definition for every resource with world or economic behaviour:
+
+```bronze
+resources {
+  resource fish {
+    habitat coast
+    capacity 200
+    renew 0.12
+    nutrition 0.20
+    market_target 100
+  }
+}
+```
+
+`habitat` is the terrain query used by gathering and movement. The current
+world recognises `coast`, `field`, `forest`, `claypit`, `mine_copper`,
+`mine_tin`, and `fire`.
+
+`capacity` is availability at a matching location. `renew` is the daily
+proportion restored toward capacity. `nutrition` is hunger relief per consumed
+unit; zero means the resource is not food. `market_target` is the settlement
+stock level used for scarcity pricing.
+
+This legacy renewal-only form remains valid for existing scenarios:
+
+```bronze
+resources {
+  fish_renew 0.12
+}
+```
+
+### Actions
+
+Declare each action a scenario may use. The two numbers are the minimum and
+maximum count of word arguments; a numeric quantity is not counted.
+
+```bronze
+actions {
+  action gather 1 1
+  action craft 1 1
+  action move_to 1 1
+  action rest 0 0
+  action trade 0 2
+}
+```
+
+The current runtime handles `gather`, `craft`, `trade`, `rest`, `move_to`,
+`roam`, and `wander`. When an `actions` block exists, using an undeclared
+action is a validation error.
+
+### Recipes
+
+A recipe has one output and one or more inputs. Inputs and outputs can be
+registered resources or items.
+
+```bronze
+recipes {
+  recipe tool {
+    output tool 1
+    input copper 1
+    input tin 1
+    input charcoal 1
+  }
+
+  recipe pot {
+    output pot 1
+    input clay 2
+  }
+}
+```
+
+`craft tool 1` runs the `tool` recipe. Insufficient inputs are recoverable: the
+action is valid but produces no material.
+
+### Settlement policy
+
+```bronze
+settlement_policy {
+  food_fallback grain
+  deposit_threshold 2
+  rest_recovery 0.04
+}
+```
+
+Food resources above `deposit_threshold` are deposited at an agent's home
+settlement. `rest_recovery` is the fatigue reduction at home. `food_fallback`
+is retained for future policy extensions; current food selection uses positive
+resource `nutrition` values.
+
+## Vocations, tasks, and rules
+
+A vocation is an occupation. It owns named tasks and weighted rules. Agents
+receive vocations deterministically when they spawn.
+
+```bronze
+vocations {
+  vocation fisher {
+    task work {
+      move_to coast
+      gather fish 3
+    }
+
+    rule hungry_work {
+      when hunger > 0.25 and fatigue < 0.90
+      do work
+      weight 6
+    }
+  }
+}
+```
+
+### Tasks
+
+A task runs statements in order. The core actions use these forms:
+
+```bronze
+gather RESOURCE AMOUNT
+craft RECIPE AMOUNT
+trade GIVE WANT
+rest
+move_to HABITAT
+roam [HABITAT]
+wander [HABITAT]
+```
+
+Tasks may contain conditional and probabilistic blocks:
+
+```bronze
+task cautious_work {
+  when fatigue < 0.80 {
+    gather grain 2
+  }
+  chance 25 {
+    rest
+  }
+}
+```
+
+`chance` uses a percentage from `0` through `100`.
+
+### Rules and conditions
+
+A rule selects one task or a declared zero-argument action:
+
+```bronze
+rule hungry_work {
+  when hunger > 0.25 and fatigue < 0.90
+  do work
+  weight 6
+}
+```
+
+Conditions support `hunger`, `fatigue`, `true`, `false`, `prob`, and
+`chance(...)`; they support `>`, `<`, `>=`, `<=`, `==`, `!=`, `and`, `or`, and
+parentheses. `prob 0.25` and `chance(0.25)` both use probabilities from `0`
+through `1`.
+
+All passing rules participate in weighted selection. A missing weight means
+`1`. A rule target must name a task in the same vocation or a declared action.
+
+## Validation and runtime behaviour
+
+The parser first checks syntax, then validates configuration references before
+simulation begins. It rejects unknown recipe inputs or outputs, resources that
+are absent from the registry, undeclared actions, invalid action argument
+counts, and missing rule targets.
+
+Diagnostics use `SyntaxError:<line>:<column>` and `ValidationError:<line>`.
+At runtime, depleted resources and insufficient recipe inputs are recoverable.
+The event interface records selection, gathering, crafting, trading, resting,
+and deposits for deterministic tests, snapshots, and adapters.
+
+## Formal grammar
+
+The following section is generated from the authoritative grammar block in
+`src/brz_dsl.c`. After changing that block, run:
+
+```sh
+python3 tools/extract_dsl_grammar.py
+python3 tools/update_docs.py
 ```
 
 <!-- AUTO-GENERATED-GRAMMAR-BEGIN -->
@@ -87,7 +328,7 @@ make -C src docs
 #
 # Conventions:
 #   - 'literal' denotes a keyword or symbol token.
-#   - identifier / number / string are lexical tokens.
+#   - identifier and number are lexical tokens.
 #   - { X } means repetition (zero or more).
 #   - [ X ] means optional.
 #
@@ -131,47 +372,41 @@ rule_def             := 'rule' identifier block_open { rule_stmt } block_close ;
 
 # ----- World statements -----
 # The world block is intentionally permissive: keys are identifiers.
-# Values can be number, string, or identifier.
+# Values can be number or identifier.
 
-world_stmt           := identifier value ';' ;
-value                := number | string | identifier ;
+world_stmt           := identifier value ;
+value                := number | identifier ;
 
 # ----- Registry definitions -----
 
-kind_def             := identifier ';' ;
-resource_def         := identifier ':' identifier ';' ;
-item_def             := identifier ':' identifier ';' ;
+kind_def             := 'resources' block_open { identifier } block_close
+                    | 'items' block_open { identifier } block_close ;
+item_def             := identifier 'item' ;
 
 # ----- Rule / task language -----
 
-rule_stmt            := when_block
-                    | do_stmt
-                    | chance_block
-                    | ';' ;
+rule_stmt            := 'when' condition
+                    | 'do' identifier
+                    | 'weight' number ;
 
-task_stmt            := action_stmt
-                    | do_stmt
-                    | when_block
-                    | chance_block
-                    | ';' ;
+task_stmt            := action_stmt | when_block | chance_block ;
 
 # Common structured statements
 when_block           := 'when' condition block_open { task_stmt } block_close ;
 chance_block         := 'chance' number block_open { task_stmt } block_close ;
-do_stmt              := 'do' identifier ';' ;
 
 # Conditions are intentionally simple in the core grammar.
 # The engine may accept additional operators in future revisions.
 
-condition            := identifier cond_op cond_rhs ;
+condition            := comparison | 'true' | 'false' | 'prob' number | 'chance' '(' number ')' ;
+comparison           := identifier cond_op cond_rhs ;
 cond_op              := '<' | '<=' | '>' | '>=' | '==' | '!=' ;
 cond_rhs             := number | identifier ;
 
 # Actions are a small, engine-defined set of verbs.
 # Extend the verb set in the engine and keep the grammar here in sync.
 
-action_stmt          := action_verb identifier number ';' ;
-action_verb          := 'gather' | 'craft' | 'trade' ;
+action_stmt          := identifier { identifier | number } ;
 
 # ----- Lexical helpers -----
 
@@ -182,352 +417,7 @@ block_close          := '}' ;
 # Older examples may use these blocks. They are accepted for backwards compatibility
 # and may be mapped internally onto the newer registries.
 
-compat_block         := 'sim' block_open { compat_stmt } block_close
-                     | 'agents' block_open { compat_stmt } block_close ;
-
-compat_stmt          := identifier { identifier | number | string | ':' | ';' | '{' | '}' } ;
+compat_block         := ('sim' | 'agents' | 'settlements') block_open { identifier value } block_close ;
 ```
 
 <!-- AUTO-GENERATED-GRAMMAR-END -->
-
-### 3.1 Grammar notes
-
-- The grammar is presented in an EBNF-like notation.
-- Some productions include “compatibility blocks” (e.g., `sim {}` / `agents {}`) to keep older
-  examples working while the DSL evolves. Prefer the newer registries (`kinds`, `resources`, `items`, `vocations`)
-  for modern scenarios.
-
----
-
-## 4. Semantic model
-
-### 4.1 Dynamic kinds
-
-The DSL defines **kind namespaces** that are mapped to internal IDs at runtime.
-
-Example:
-
-```bronze
-kinds {
-    resource;
-    item;
-}
-```
-
-Once registered, resources and items can reference these kinds by name:
-
-```bronze
-resources {
-    grain : resource;
-    fish  : resource;
-}
-
-items {
-    bronze_axe : item;
-}
-```
-
-**Rules:**
-
-- A kind must be declared before it is referenced.
-- Names are unique within their registry (duplicate definitions are errors).
-
-### 4.2 Registries and resolution
-
-The parser creates registries for:
-
-- kinds
-- resources
-- items
-- vocations (and their tasks/rules)
-
-Name resolution is performed within the appropriate namespace:
-
-- `grain` used inside a `resources {}` block resolves as a resource.
-- `harvest` used inside a `vocation` resolves as a task (or rule) depending on context.
-
----
-
-## 5. Top-level blocks
-
-A DSL file consists of zero or more **top-level blocks**. Most scenarios include:
-
-- `world { ... }`
-- `kinds { ... }`
-- `resources { ... }`
-- `items { ... }`
-- `vocations { ... }`
-
-### 5.1 `world { ... }`
-
-Declares scenario-level settings. Typical fields include:
-
-```bronze
-world {
-    seed 12345;
-    years 50;
-    population 120;
-    terrain coast;
-}
-```
-
-**Rules:**
-
-- Unknown keys may be accepted as generic key/value fields depending on build configuration.
-- If a key is required by the simulator and is missing, the simulator should either supply a default or error out.
-
-### 5.2 `kinds { ... }`
-
-Declares dynamic kinds:
-
-```bronze
-kinds {
-    resource;
-    item;
-}
-```
-
-### 5.3 `resources { ... }`
-
-Declares named resources:
-
-```bronze
-resources {
-    grain : resource;
-    wood  : resource;
-    clay  : resource;
-}
-```
-
-### 5.4 `items { ... }`
-
-Declares named items:
-
-```bronze
-items {
-    bronze_axe : item;
-    pottery    : item;
-}
-```
-
-### 5.5 `vocations { ... }`
-
-Declares vocation scripts (occupations). Each vocation contains tasks and rules.
-
-```bronze
-vocations {
-    vocation farmer {
-        task harvest {
-            gather grain 2;
-        }
-
-        rule daily {
-            do harvest;
-        }
-    }
-}
-```
-
----
-
-## 6. Tasks, rules, and execution
-
-### 6.1 Tasks
-
-A `task` is a sequence of statements. Tasks are invoked from rules (or from other tasks, if supported).
-
-Example:
-
-```bronze
-task harvest {
-    gather grain 2;
-}
-```
-
-#### 6.1.1 Statement forms (engine core)
-
-The simulator currently supports a small core, such as:
-
-- `gather <resource> <amount>;`
-- `craft <item> <amount>;`
-- `trade <resource_or_item> <amount>;`
-- `do <task>;` (invoke another task)
-- `chance <probability> { ... }` (probabilistic block)
-- `when <condition> { ... }` (conditional block)
-
-> The exact statement set is defined by the C engine; if you extend the engine, update the grammar block
-> in `src/brz_dsl.c` so the docs update automatically.
-
-### 6.2 Rules
-
-A `rule` selects tasks to run, optionally gated by conditions.
-
-Example:
-
-```bronze
-rule hungry {
-    when grain < 2 {
-        do harvest;
-    }
-}
-```
-
-### 6.3 Simulation tick model (informal)
-
-A typical tick looks like:
-
-1. Evaluate vocation rules in definition order
-2. When a rule triggers, run its selected tasks
-3. Task statements modify world state (resources/items/etc.)
-4. Errors may abort the current task or rule (see error modes)
-
----
-
-## 7. Error modes and diagnostics
-
-The parser and engine produce different classes of errors. If you add new diagnostics, keep them
-consistent and actionable.
-
-### 7.1 Syntax errors (parser)
-
-**Definition:** the input cannot be tokenized or parsed according to grammar.
-
-Examples:
-
-- Missing `;`
-- Unexpected token
-- Unterminated string
-- Mismatched braces
-
-Recommended message format:
-
-```
-SyntaxError: <file>:<line>:<col>: <message> (saw '<token>', expected '<expected>')
-```
-
-### 7.2 Semantic errors (configuration)
-
-**Definition:** the file parses, but definitions are invalid.
-
-Examples:
-
-- Duplicate resource name
-- Resource references unknown kind
-- Task references an unknown resource
-- Rule references an unknown task
-
-Recommended message format:
-
-```
-SemanticError: <file>:<line>:<col>: <message>
-```
-
-### 7.3 Runtime warnings (simulation)
-
-**Definition:** the configuration is valid but execution hits a recoverable issue.
-
-Examples:
-
-- Attempt to gather from a depleted pool
-- Attempt to craft without required inputs (if the engine models recipes)
-- A rule results in no executable tasks
-
-Recommended message format:
-
-```
-Warning: <context>: <message>
-```
-
-### 7.4 Fatal runtime errors
-
-**Definition:** continuing would produce corrupt state.
-
-Examples:
-
-- Out-of-bounds registry access
-- Missing mandatory world fields without defaults
-
-Recommended message format:
-
-```
-Fatal: <context>: <message>
-```
-
----
-
-## 8. Complete examples
-
-### 8.1 Minimal scenario
-
-```bronze
-world {
-    seed 1;
-    years 10;
-    population 30;
-    terrain coast;
-}
-
-kinds {
-    resource;
-    item;
-}
-
-resources {
-    grain : resource;
-    fish  : resource;
-}
-
-items {
-    bronze_axe : item;
-}
-
-vocations {
-    vocation fisher {
-        task net_fish {
-            gather fish 2;
-        }
-        rule daily {
-            do net_fish;
-        }
-    }
-}
-```
-
-### 8.2 Example error: unknown kind
-
-```bronze
-resources {
-    grain : food;
-}
-```
-
-Expected diagnostic:
-
-```
-SemanticError: grain uses undefined kind 'food'
-```
-
----
-
-## 9. Versioning and compatibility
-
-- The DSL is designed to evolve without breaking old scenarios abruptly.
-- When adding syntax:
-  - extend the parser
-  - update the grammar block in `src/brz_dsl.c`
-  - regenerate docs via `make -C src docs`
-
----
-
-## 10. Regenerating docs
-
-From the repository root:
-
-```sh
-make -C src docs
-```
-
-This will:
-
-1. Extract the authoritative grammar from `src/brz_dsl.c` into `docs/grammar.ebnf`
-2. Inject that grammar into this manual between the auto-generated markers

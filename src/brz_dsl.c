@@ -11,7 +11,7 @@ DSL_GRAMMAR_BEGIN
 #
 # Conventions:
 #   - 'literal' denotes a keyword or symbol token.
-#   - identifier / number / string are lexical tokens.
+#   - identifier and number are lexical tokens.
 #   - { X } means repetition (zero or more).
 #   - [ X ] means optional.
 #
@@ -55,47 +55,41 @@ rule_def             := 'rule' identifier block_open { rule_stmt } block_close ;
 
 # ----- World statements -----
 # The world block is intentionally permissive: keys are identifiers.
-# Values can be number, string, or identifier.
+# Values can be number or identifier.
 
-world_stmt           := identifier value ';' ;
-value                := number | string | identifier ;
+world_stmt           := identifier value ;
+value                := number | identifier ;
 
 # ----- Registry definitions -----
 
-kind_def             := identifier ';' ;
-resource_def         := identifier ':' identifier ';' ;
-item_def             := identifier ':' identifier ';' ;
+kind_def             := 'resources' block_open { identifier } block_close
+                    | 'items' block_open { identifier } block_close ;
+item_def             := identifier 'item' ;
 
 # ----- Rule / task language -----
 
-rule_stmt            := when_block
-                    | do_stmt
-                    | chance_block
-                    | ';' ;
+rule_stmt            := 'when' condition
+                    | 'do' identifier
+                    | 'weight' number ;
 
-task_stmt            := action_stmt
-                    | do_stmt
-                    | when_block
-                    | chance_block
-                    | ';' ;
+task_stmt            := action_stmt | when_block | chance_block ;
 
 # Common structured statements
 when_block           := 'when' condition block_open { task_stmt } block_close ;
 chance_block         := 'chance' number block_open { task_stmt } block_close ;
-do_stmt              := 'do' identifier ';' ;
 
 # Conditions are intentionally simple in the core grammar.
 # The engine may accept additional operators in future revisions.
 
-condition            := identifier cond_op cond_rhs ;
+condition            := comparison | 'true' | 'false' | 'prob' number | 'chance' '(' number ')' ;
+comparison           := identifier cond_op cond_rhs ;
 cond_op              := '<' | '<=' | '>' | '>=' | '==' | '!=' ;
 cond_rhs             := number | identifier ;
 
 # Actions are a small, engine-defined set of verbs.
 # Extend the verb set in the engine and keep the grammar here in sync.
 
-action_stmt          := action_verb identifier number ';' ;
-action_verb          := 'gather' | 'craft' | 'trade' ;
+action_stmt          := identifier { identifier | number } ;
 
 # ----- Lexical helpers -----
 
@@ -106,10 +100,7 @@ block_close          := '}' ;
 # Older examples may use these blocks. They are accepted for backwards compatibility
 # and may be mapped internally onto the newer registries.
 
-compat_block         := 'sim' block_open { compat_stmt } block_close
-                     | 'agents' block_open { compat_stmt } block_close ;
-
-compat_stmt          := identifier { identifier | number | string | ':' | ';' | '{' | '}' } ;
+compat_block         := ('sim' | 'agents' | 'settlements') block_open { identifier value } block_close ;
 DSL_GRAMMAR_END
 */
 

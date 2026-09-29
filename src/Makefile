@@ -13,3 +13,9 @@ bronzesim: $(OBJS)
 
 clean:
 	rm -f $(OBJS) bronzesim
+
+docs:
+	python3 ../tools/extract_dsl_grammar.py
+	python3 ../tools/update_docs.py
+
+.PHONY: all clean docs
