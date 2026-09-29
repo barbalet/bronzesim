@@ -156,6 +156,30 @@ static void test_parse_task_stmt_variants(void)
     brz_cfg_free(&cfg);
 }
 
+static void test_parse_data_defined_economy(void)
+{
+    const char* src =
+        "kinds { resources { grain clay } items { pot } }\n"
+        "resources { resource grain { habitat field capacity 120 renew 0.1 nutrition 0.2 market_target 80 } resource clay { habitat claypit capacity 20 renew 0 nutrition 0 market_target 10 } }\n"
+        "recipes { recipe pot { output pot 1 input clay 2 } }\n"
+        "actions { action gather 1 2 action craft 1 2 }\n"
+        "settlement_policy { deposit_threshold 3 rest_recovery 0.05 }\n"
+        "vocations { vocation potter { task work {\n"
+        "gather clay 2\ncraft pot 1\n"
+        "} rule r { when true do work } } }\n";
+    ParsedConfig cfg; brz_cfg_init(&cfg);
+    TEST_ASSERT(parse_from_string(src,&cfg));
+    const ResourceDef* grain=brz_resource_find(&cfg,"grain");
+    const RecipeDef* pot=brz_recipe_find(&cfg,"pot");
+    TEST_ASSERT(grain && pot);
+    TEST_STREQ(grain->habitat,"field");
+    TEST_EQ_INT((int)grain->capacity,120);
+    TEST_EQ_SIZE(pot->inputs.len,1);
+    TEST_STREQ(((const RecipeInputDef*)brz_vec_cat(&pot->inputs,0))->kind,"clay");
+    TEST_EQ_INT((int)cfg.settlement_policy.deposit_threshold,3);
+    brz_cfg_free(&cfg);
+}
+
 static void test_parse_errors_return_false(void)
 {
     /* unknown top-level */
@@ -197,5 +221,6 @@ void test_parser_run(void)
     test_parse_items_mapping_form_adds_kind();
     test_parse_world_agents_settlements_defaults();
     test_parse_task_stmt_variants();
+    test_parse_data_defined_economy();
     test_parse_errors_return_false();
 }

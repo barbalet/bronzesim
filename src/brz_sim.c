@@ -234,7 +234,7 @@ static void print_day_summary(int day, const ParsedConfig* cfg,
 
 /* ---------------- main runner ---------------- */
 
-int brz_run(const ParsedConfig* cfg)
+int brz_run_with_events(const ParsedConfig* cfg, const BronzeEventSink* events)
 {
     if(!cfg) return 1;
 
@@ -261,10 +261,14 @@ int brz_run(const ParsedConfig* cfg)
         fprintf(stderr, "World init failed\n");
         return 1;
     }
+    BronzeWorldPort world_port;
+    bronze_world_port_init(&world_port,&world,res_n);
+    if(!world_port.context){ brz_world_free(&world); return 1; }
 
     BrzSettlement* setts = NULL;
     if(brz_settlements_alloc(&setts, sett_n, res_n, item_n) != 0){
         fprintf(stderr, "Settlement alloc failed\n");
+        bronze_world_port_destroy(&world_port);
         brz_world_free(&world);
         return 1;
     }
@@ -276,6 +280,7 @@ int brz_run(const ParsedConfig* cfg)
                                   cfg->seed ? cfg->seed : 0xC0FFEEu) != 0){
         fprintf(stderr, "Agent alloc failed\n");
         brz_settlements_free(setts, sett_n);
+        bronze_world_port_destroy(&world_port);
         brz_world_free(&world);
         return 1;
     }
@@ -292,11 +297,11 @@ int brz_run(const ParsedConfig* cfg)
 
     for(int day=1; day<=days; day++)
     {
-        brz_world_step_regen(&world, res_n);
+        world_port.step_regen(world_port.context);
         brz_settlements_begin_day(setts, sett_n);
 
         for(int i=0;i<agent_n;i++)
-            brz_agent_step(&agents[i], cfg, &world, setts, sett_n, &rng);
+            brz_agent_step(&agents[i], cfg, &world, setts, sett_n, &rng, events, day);
 
         if(day==1 || (report_every>0 && day%report_every==0) || day==days)
             print_day_summary(day, cfg, setts, sett_n, agents, agent_n);
@@ -316,7 +321,13 @@ int brz_run(const ParsedConfig* cfg)
 
     brz_agents_free(agents, agent_n);
     brz_settlements_free(setts, sett_n);
+    bronze_world_port_destroy(&world_port);
     brz_world_free(&world);
 
     return 0;
+}
+
+int brz_run(const ParsedConfig* cfg)
+{
+    return brz_run_with_events(cfg, NULL);
 }

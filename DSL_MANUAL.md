@@ -99,6 +99,9 @@ top_level_block     := world_block
                     | kinds_block
                     | resources_block
                     | items_block
+                    | recipes_block
+                    | actions_block
+                    | settlement_policy_block
                     | vocations_block
                     | compat_block ;
 
@@ -107,7 +110,17 @@ top_level_block     := world_block
 world_block          := 'world' block_open { world_stmt } block_close ;
 kinds_block          := 'kinds' block_open { kind_def } block_close ;
 resources_block      := 'resources' block_open { resource_def } block_close ;
+resource_def         := identifier number
+                    | 'resource' identifier block_open { resource_property } block_close ;
+resource_property    := 'habitat' identifier
+                    | ('capacity' | 'renew' | 'nutrition' | 'market_target') number ;
 items_block          := 'items' block_open { item_def } block_close ;
+recipes_block        := 'recipes' block_open { recipe_def } block_close ;
+recipe_def           := 'recipe' identifier block_open 'output' identifier number { 'input' identifier number } block_close ;
+actions_block        := 'actions' block_open { 'action' identifier number number } block_close ;
+settlement_policy_block := 'settlement_policy' block_open { settlement_property } block_close ;
+settlement_property  := 'food_fallback' identifier
+                    | ('deposit_threshold' | 'rest_recovery') number ;
 
 vocations_block      := 'vocations' block_open { vocation_def } block_close ;
 vocation_def         := 'vocation' identifier block_open { vocation_member } block_close ;

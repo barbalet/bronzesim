@@ -14,7 +14,8 @@ SRC_C = \
   ../brz_sim.c \
   ../brz_util.c \
   ../brz_vec.c \
-  ../brz_world.c
+  ../brz_world.c \
+  ../brz_port.c
 
 TEST_C = \
   test_common.c \
@@ -24,7 +25,8 @@ TEST_C = \
   test_kinds.c \
   test_land.c \
   test_parser.c \
-  test_dsl.c
+  test_dsl.c \
+  test_sim.c
 
 OBJS = $(SRC_C:.c=.o) $(TEST_C:.c=.o)
 

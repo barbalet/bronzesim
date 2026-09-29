@@ -81,6 +81,17 @@ static int eval_cmp_or_prob(const char** s, const BrzAgent* a, const ParsedConfi
     char ident[128];
     if(!ex_read_ident(s,ident,sizeof(ident))) return 0;
 
+    if(brz_streq(ident,"true")) return 1;
+    if(brz_streq(ident,"false")) return 0;
+    /* Legacy scenarios use `prob 0.25`; retain it as the concise form of
+       chance(0.25) while compiled scenario conditions remain deterministic. */
+    if(brz_streq(ident,"prob")){
+        double p=0; int roll;
+        if(!ex_read_num(s,&p)) return 0;
+        roll=(int)(brz_rng_u32(rng)%10000u);
+        return roll < (int)(clamp01(p)*10000.0);
+    }
+
     double lhs = agent_var(a,cfg,ident);
     char op2[3]={0};
     if(!ex_read_op(s,op2)) return lhs!=0.0; /* truthy */
@@ -144,66 +155,34 @@ static void agent_add_item(BrzAgent* a, int iid, double amt){
     if(a->item_inv[iid] < 0) a->item_inv[iid] = 0;
 }
 
-/* ---- Recipes (hardcoded, uses available kinds) ---- */
+/* ---- Recipes (compiled from scenario content) ---- */
 static int craft_with_recipes(BrzAgent* a, const ParsedConfig* cfg, const char* item_name, double n){
-    int out = item_id(cfg, item_name);
-    if(out < 0) return 0;
-
-    /* bronze: copper + tin + charcoal (per unit) */
-    if(brz_streq(item_name,"bronze")){
-        int cu = res_id(cfg,"copper");
-        int sn = res_id(cfg,"tin");
-        int ch = res_id(cfg,"charcoal");
-        if(cu>=0 && sn>=0 && ch>=0){
-            double maxn = n;
-            if(a->res_inv[cu] < maxn) maxn = a->res_inv[cu];
-            if(a->res_inv[sn] < maxn) maxn = a->res_inv[sn];
-            if(a->res_inv[ch] < maxn) maxn = a->res_inv[ch];
-            if(maxn <= 0) return 1; /* craft failed but recipe known */
-            a->res_inv[cu] -= maxn;
-            a->res_inv[sn] -= maxn;
-            a->res_inv[ch] -= maxn;
-            agent_add_item(a, out, maxn);
-            return 1;
-        }
-        return 0;
+    const RecipeDef* recipe=brz_recipe_find(cfg,item_name);
+    if(!recipe || recipe->output_amount<=0) return 0;
+    double batches=n;
+    for(size_t i=0;i<recipe->inputs.len;i++){
+        const RecipeInputDef* in=(const RecipeInputDef*)brz_vec_cat(&recipe->inputs,i);
+        int rid=res_id(cfg,in->kind), iid=item_id(cfg,in->kind);
+        double available=(rid>=0)?a->res_inv[rid]:(iid>=0?a->item_inv[iid]:0.0);
+        if(in->amount>0 && available/in->amount<batches) batches=available/in->amount;
     }
-
-    /* charcoal item: wood -> charcoal (resource) or item? We'll treat as resource if exists. */
-    if(brz_streq(item_name,"charcoal")){
-        int wood = res_id(cfg,"wood");
-        int charcoal_res = res_id(cfg,"charcoal");
-        if(wood>=0 && charcoal_res>=0){
-            double maxn = n;
-            if(a->res_inv[wood] < maxn) maxn = a->res_inv[wood];
-            if(maxn <= 0) return 1;
-            a->res_inv[wood] -= maxn;
-            agent_add_res(a, charcoal_res, maxn);
-            return 1;
-        }
-        /* fall through */
+    if(batches<=0) return 1; /* valid recipe but insufficient inputs */
+    for(size_t i=0;i<recipe->inputs.len;i++){
+        const RecipeInputDef* in=(const RecipeInputDef*)brz_vec_cat(&recipe->inputs,i);
+        int rid=res_id(cfg,in->kind), iid=item_id(cfg,in->kind);
+        if(rid>=0) a->res_inv[rid]-=batches*in->amount;
+        else if(iid>=0) a->item_inv[iid]-=batches*in->amount;
     }
-
-    /* pottery: clay -> pottery item */
-    if(brz_streq(item_name,"pottery")){
-        int clay = res_id(cfg,"clay");
-        if(clay>=0){
-            double maxn = n;
-            if(a->res_inv[clay] < 2*maxn) maxn = a->res_inv[clay]/2;
-            if(maxn <= 0) return 1;
-            a->res_inv[clay] -= 2*maxn;
-            agent_add_item(a, out, maxn);
-            return 1;
-        }
-        return 0;
-    }
-
-    return 0;
+    int out_r=res_id(cfg,recipe->output), out_i=item_id(cfg,recipe->output);
+    if(out_r>=0) agent_add_res(a,out_r,batches*recipe->output_amount);
+    else if(out_i>=0) agent_add_item(a,out_i,batches*recipe->output_amount);
+    else return 0;
+    return 1;
 }
 
 /* ---- Action execution against world/settlements ---- */
 
-static uint16_t tag_for_move_target(const char* arg0){
+static uint16_t tag_for_habitat(const char* arg0){
     if(!arg0) return BRZ_TAG_FOREST;
     if(brz_streq(arg0,"coast")) return BRZ_TAG_COAST;
     if(brz_streq(arg0,"field")) return BRZ_TAG_FIELD;
@@ -214,25 +193,14 @@ static uint16_t tag_for_move_target(const char* arg0){
     return BRZ_TAG_FOREST;
 }
 
-static uint16_t tag_for_resource(const char* resname){
-    if(!resname) return 0;
-    if(brz_streq(resname,"fish")) return BRZ_TAG_COAST;
-    if(brz_streq(resname,"grain")) return BRZ_TAG_FIELD;
-    if(brz_streq(resname,"wood")) return BRZ_TAG_FOREST;
-    if(brz_streq(resname,"clay")) return BRZ_TAG_CLAYPIT;
-    if(brz_streq(resname,"copper")) return BRZ_TAG_MINE_CU;
-    if(brz_streq(resname,"tin")) return BRZ_TAG_MINE_SN;
-    if(brz_streq(resname,"charcoal")) return BRZ_TAG_FOREST;
-    if(brz_streq(resname,"fire")) return BRZ_TAG_FIRE;
-    return 0;
-}
 
 static int agent_at_settlement(const BrzAgent* a, const BrzSettlement* s){
     return brz_dist_manhattan(a->pos, s->pos) <= 1;
 }
 
 static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
-                    BrzSettlement* setts, int sett_n, const OpDef* op, BrzRng* rng)
+                    BrzSettlement* setts, int sett_n, const OpDef* op, BrzRng* rng,
+                    const BronzeEventSink* events, int day)
 {
     (void)rng;
     const char* opname = op->op ? op->op : "";
@@ -243,24 +211,27 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
     if(brz_streq(opname, "gather"))
     {
         int rid = res_id(cfg, arg0);
+        double gathered=0;
         if(rid >= 0){
-            uint16_t need = tag_for_resource(arg0);
+            const ResourceDef* resource=brz_resource_find(cfg,arg0);
+            uint16_t need = tag_for_habitat(resource ? resource->habitat : NULL);
             if(need){
                 if(!(brz_world_tags_at(world, a->pos) & need)){
                     /* set target toward nearest suitable tile */
                     a->target = brz_world_find_nearest_tag(world, a->pos, need, 32);
                     a->has_target = 1;
                 }else{
-                    double taken = brz_world_take(world, a->pos, a->res_n, rid, n);
-                    agent_add_res(a, rid, taken);
+                    gathered = brz_world_take(world, a->pos, a->res_n, rid, n);
+                    agent_add_res(a, rid, gathered);
                 }
             }else{
-                double taken = brz_world_take(world, a->pos, a->res_n, rid, n);
-                agent_add_res(a, rid, taken);
+                gathered = brz_world_take(world, a->pos, a->res_n, rid, n);
+                agent_add_res(a, rid, gathered);
             }
         }
         a->fatigue += 0.04 + 0.005 * n;
         a->hunger  += 0.02;
+        if(gathered>0) bronze_event_emit(events,BRZ_EVENT_GATHERED,a->id,a->home_settlement,arg0,gathered,day);
     }
     else if(brz_streq(opname, "craft"))
     {
@@ -271,6 +242,7 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
         }
         a->fatigue += 0.05 + 0.01 * n;
         a->hunger  += 0.02;
+        bronze_event_emit(events,BRZ_EVENT_CRAFTED,a->id,a->home_settlement,arg0,n,day);
     }
     else if(brz_streq(opname, "trade"))
     {
@@ -285,8 +257,8 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
 
             double give_amt = 1.0;
             if(give_r>=0 && a->res_inv[give_r] >= give_amt){
-                double pg = brz_settlement_price_res(s, give_r);
-                double pw = (want_r>=0) ? brz_settlement_price_res(s, want_r)
+                double pg = brz_settlement_price_res(s, cfg, give_r);
+                double pw = (want_r>=0) ? brz_settlement_price_res(s, cfg, want_r)
                                         : (want_i>=0 ? brz_settlement_price_item(s, want_i) : 1.0);
                 double want_amt = (pw>0? (give_amt*pg/pw) : 0.0);
                 if(want_amt <= 0) want_amt = 0;
@@ -307,7 +279,7 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
                 }
             }else if(give_i>=0 && a->item_inv[give_i] >= give_amt){
                 double pg = brz_settlement_price_item(s, give_i);
-                double pw = (want_r>=0) ? brz_settlement_price_res(s, want_r)
+                double pw = (want_r>=0) ? brz_settlement_price_res(s, cfg, want_r)
                                         : (want_i>=0 ? brz_settlement_price_item(s, want_i) : 1.0);
                 double want_amt = (pw>0? (give_amt*pg/pw) : 0.0);
                 a->item_inv[give_i] -= give_amt;
@@ -333,16 +305,18 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
         }
         a->fatigue += 0.02;
         a->hunger  += 0.01;
+        bronze_event_emit(events,BRZ_EVENT_TRADED,a->id,si,arg0,1.0,day);
     }
     else if(brz_streq(opname, "rest"))
     {
         a->fatigue -= 0.1;
         if(a->fatigue < 0) a->fatigue = 0;
         a->hunger += 0.01;
+        bronze_event_emit(events,BRZ_EVENT_RESTED,a->id,a->home_settlement,"rest",1.0,day);
     }
     else if(brz_streq(opname, "move_to") || brz_streq(opname, "roam") || brz_streq(opname,"wander"))
     {
-        uint16_t t = tag_for_move_target(arg0);
+        uint16_t t = tag_for_habitat(arg0);
         if(!a->has_target || brz_dist_manhattan(a->pos,a->target) == 0){
             a->target = brz_world_find_nearest_tag(world, a->pos, t, 32);
             a->has_target = 1;
@@ -358,22 +332,22 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
 /* statement execution */
 
 static void exec_stmt(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world, BrzSettlement* setts, int sett_n,
-                      const StmtDef* st, BrzRng* rng);
+                      const StmtDef* st, BrzRng* rng, const BronzeEventSink* events, int day);
 
 static void exec_stmts_vec(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world, BrzSettlement* setts, int sett_n,
-                           const BrzVec* stmts, BrzRng* rng)
+                           const BrzVec* stmts, BrzRng* rng, const BronzeEventSink* events, int day)
 {
     for(size_t i=0;i<stmts->len;i++){
         const StmtDef* st = (const StmtDef*)brz_vec_cat(stmts, i);
-        exec_stmt(a, cfg, world, setts, sett_n, st, rng);
+        exec_stmt(a, cfg, world, setts, sett_n, st, rng, events, day);
     }
 }
 
 static void exec_stmt(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world, BrzSettlement* setts, int sett_n,
-                      const StmtDef* st, BrzRng* rng)
+                      const StmtDef* st, BrzRng* rng, const BronzeEventSink* events, int day)
 {
     if(st->kind == ST_OP){
-        exec_op(a, cfg, world, setts, sett_n, &st->as.op, rng);
+        exec_op(a, cfg, world, setts, sett_n, &st->as.op, rng, events, day);
     }else if(st->kind == ST_CHANCE){
         /* percent 0..100 */
         double pct = st->as.chance.chance_pct;
@@ -382,11 +356,11 @@ static void exec_stmt(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world, Brz
         int roll = (int)(brz_rng_u32(rng)%10000u);
         int thr = (int)((pct/100.0)*10000.0);
         if(roll < thr){
-            exec_stmts_vec(a, cfg, world, setts, sett_n, &st->as.chance.body, rng);
+            exec_stmts_vec(a, cfg, world, setts, sett_n, &st->as.chance.body, rng, events, day);
         }
     }else if(st->kind == ST_WHEN){
         if(eval_when_expr(st->as.when_stmt.when_expr, a, cfg, rng)){
-            exec_stmts_vec(a, cfg, world, setts, sett_n, &st->as.when_stmt.body, rng);
+            exec_stmts_vec(a, cfg, world, setts, sett_n, &st->as.when_stmt.body, rng, events, day);
         }
     }
 }
@@ -394,19 +368,23 @@ static void exec_stmt(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world, Brz
 /* auto-eat from own resources and settlement */
 static void agent_auto_eat(BrzAgent* a, const ParsedConfig* cfg, BrzSettlement* setts, int sett_n)
 {
-    int grain = res_id(cfg,"grain");
-    int fish  = res_id(cfg,"fish");
     int si = (sett_n>0) ? a->home_settlement : -1;
 
     if(a->hunger > 0.7)
     {
-        double eat = 0.0;
-        if(grain>=0 && a->res_inv[grain] > 0){ eat = 0.2; a->res_inv[grain] -= 1; }
-        else if(fish>=0 && a->res_inv[fish] > 0){ eat = 0.2; a->res_inv[fish] -= 1; }
-
+        double eat = 0.0; int selected=-1;
+        for(size_t rid=0;rid<a->res_n;rid++){
+            const char* name=kind_table_name(&cfg->resource_kinds,(int)rid);
+            const ResourceDef* def=brz_resource_find(cfg,name);
+            if(def && def->nutrition>0 && a->res_inv[rid]>0){ selected=(int)rid; eat=def->nutrition; break; }
+        }
+        if(selected>=0) a->res_inv[selected]-=1;
         if(eat<=0.0 && si>=0 && agent_at_settlement(a,&setts[si])){
-            if(grain>=0 && setts[si].res_inv[grain] > 0){ setts[si].res_inv[grain]-=1; eat=0.2; }
-            else if(fish>=0 && setts[si].res_inv[fish] > 0){ setts[si].res_inv[fish]-=1; eat=0.2; }
+            for(size_t rid=0;rid<a->res_n;rid++){
+                const char* name=kind_table_name(&cfg->resource_kinds,(int)rid);
+                const ResourceDef* def=brz_resource_find(cfg,name);
+                if(def && def->nutrition>0 && setts[si].res_inv[rid]>0){ setts[si].res_inv[rid]-=1; eat=def->nutrition; break; }
+            }
         }
         a->hunger -= eat;
         if(a->hunger < 0) a->hunger = 0;
@@ -414,7 +392,7 @@ static void agent_auto_eat(BrzAgent* a, const ParsedConfig* cfg, BrzSettlement* 
 }
 
 /* auto-rest: when at home settlement, reduce fatigue (keeps agents active long-term) */
-static void agent_auto_rest(BrzAgent* a, BrzSettlement* setts, int sett_n)
+static void agent_auto_rest(BrzAgent* a, const ParsedConfig* cfg, BrzSettlement* setts, int sett_n)
 {
     if(sett_n<=0) return;
     int si = a->home_settlement;
@@ -422,7 +400,9 @@ static void agent_auto_rest(BrzAgent* a, BrzSettlement* setts, int sett_n)
 
     if(agent_at_settlement(a, &setts[si])){
         /* a little recovery every day at home */
-        a->fatigue -= 0.04;
+        double recovery=cfg->settlement_policy.rest_recovery;
+        if(recovery<=0) recovery=0.04;
+        a->fatigue -= recovery;
         /* if exhausted, recover more aggressively */
         if(a->fatigue > 0.85) a->fatigue -= 0.10;
         if(a->fatigue < 0.0) a->fatigue = 0.0;
@@ -508,7 +488,8 @@ void brz_agents_free(BrzAgent* agents, int agent_n){
 }
 
 void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
-                    BrzSettlement* setts, int sett_n, BrzRng* rng)
+                    BrzSettlement* setts, int sett_n, BrzRng* rng,
+                    const BronzeEventSink* events, int day)
 {
     /* baseline drift (daily metabolism + rest)
        NOTE: fatigue naturally recovers a bit each day; hard work re-adds fatigue. */
@@ -518,9 +499,15 @@ void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
     /* execute one rule per day */
     const RuleDef* r = pick_rule(a, cfg, rng);
     if(r && r->do_task){
+        bronze_event_emit(events,BRZ_EVENT_OCCUPATION_SELECTED,a->id,a->home_settlement,
+                          r->do_task,1.0,day);
         TaskDef* t = brz_voc_find_task((VocationDef*)a->voc, r->do_task);
         if(t){
-            exec_stmts_vec(a, cfg, world, setts, sett_n, &t->stmts, rng);
+            exec_stmts_vec(a, cfg, world, setts, sett_n, &t->stmts, rng, events, day);
+        }else if(brz_action_find(cfg,r->do_task)){
+            OpDef action; memset(&action,0,sizeof(action));
+            action.op=r->do_task; action.line=r->line;
+            exec_op(a,cfg,world,setts,sett_n,&action,rng,events,day);
         }
     }
 
@@ -534,23 +521,23 @@ void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
     a->pos.x = brz_clamp_i(a->pos.x, 0, world->w-1);
     a->pos.y = brz_clamp_i(a->pos.y, 0, world->h-1);
 
-    agent_auto_rest(a, setts, sett_n);
+    agent_auto_rest(a, cfg, setts, sett_n);
     agent_auto_eat(a, cfg, setts, sett_n);
 
-    /* deliver some gathered food to home settlement when at home */
+    /* Deposit policy is scenario data: food resources above its threshold are
+       communal stock, rather than a special case for named resources. */
     int si = (sett_n>0) ? a->home_settlement : -1;
     if(si>=0 && agent_at_settlement(a,&setts[si])){
-        int grain = res_id(cfg,"grain");
-        int fish  = res_id(cfg,"fish");
-        if(grain>=0 && a->res_inv[grain] > 2){
-            double move = floor(a->res_inv[grain] - 2);
-            a->res_inv[grain] -= move;
-            setts[si].res_inv[grain] += move;
-        }
-        if(fish>=0 && a->res_inv[fish] > 2){
-            double move = floor(a->res_inv[fish] - 2);
-            a->res_inv[fish] -= move;
-            setts[si].res_inv[fish] += move;
+        double threshold=cfg->settlement_policy.deposit_threshold;
+        if(threshold<=0) threshold=2;
+        for(size_t rid=0;rid<a->res_n;rid++){
+            const ResourceDef* def=brz_resource_find(cfg,kind_table_name(&cfg->resource_kinds,(int)rid));
+            if(def && def->nutrition>0 && a->res_inv[rid]>threshold){
+                double move=floor(a->res_inv[rid]-threshold);
+                a->res_inv[rid]-=move; setts[si].res_inv[rid]+=move;
+                if(move>0) bronze_event_emit(events,BRZ_EVENT_DEPOSITED,a->id,si,
+                                              kind_table_name(&cfg->resource_kinds,(int)rid),move,day);
+            }
         }
     }
 }

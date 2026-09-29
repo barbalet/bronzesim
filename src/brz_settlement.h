@@ -3,6 +3,7 @@
 #define BRZ_SETTLEMENT_H
 
 #include "brz_types.h"
+#include "brz_dsl.h"
 #include <stddef.h>
 
 typedef struct BrzSettlement {
@@ -19,7 +20,7 @@ void brz_settlements_begin_day(BrzSettlement* s, int n);
 void brz_settlements_free(BrzSettlement* s, int n);
 
 int   brz_find_nearest_settlement(const BrzSettlement* s, int n, BrzPos p);
-double brz_settlement_price_res(const BrzSettlement* s, int rid);
+double brz_settlement_price_res(const BrzSettlement* s, const ParsedConfig* cfg, int rid);
 double brz_settlement_price_item(const BrzSettlement* s, int iid);
 
 #endif

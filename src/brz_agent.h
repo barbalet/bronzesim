@@ -7,6 +7,7 @@
 #include "brz_world.h"
 #include "brz_settlement.h"
 #include "brz_util.h"
+#include "brz_port.h"
 #include <stddef.h>
 
 typedef struct BrzAgent {
@@ -30,6 +31,7 @@ int  brz_agents_alloc_and_spawn(BrzAgent** out, int agent_n, const ParsedConfig*
 void brz_agents_free(BrzAgent* agents, int agent_n);
 
 void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
-                    BrzSettlement* setts, int sett_n, BrzRng* rng);
+                    BrzSettlement* setts, int sett_n, BrzRng* rng,
+                    const BronzeEventSink* events, int day);
 
 #endif

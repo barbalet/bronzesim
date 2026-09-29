@@ -75,10 +75,11 @@ static double scarcity_price(double inv, double target){
     return p;
 }
 
-double brz_settlement_price_res(const BrzSettlement* s, int rid){
-    double target = (double)(s->population > 0 ? s->population : 50);
-    /* treat low-index resources as more demanded; still fine if unknown */
-    if(rid == 0) target *= 2.0;
+double brz_settlement_price_res(const BrzSettlement* s, const ParsedConfig* cfg, int rid){
+    const char* name=cfg ? kind_table_name(&cfg->resource_kinds,rid) : NULL;
+    const ResourceDef* def=cfg ? brz_resource_find(cfg,name) : NULL;
+    double target=def ? def->market_target : (double)(s->population > 0 ? s->population : 50);
+    if(target<=0) target=(double)(s->population > 0 ? s->population : 50);
     return scarcity_price(s->res_inv[rid], target);
 }
 

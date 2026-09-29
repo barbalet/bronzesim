@@ -8,6 +8,7 @@ void test_kinds_run(void);
 void test_land_run(void);
 void test_parser_run(void);
 void test_dsl_run(void);
+void test_sim_run(void);
 
 static void banner(const char* name)
 {
@@ -25,6 +26,7 @@ int main(void)
     banner("test_land");   test_land_run();
     banner("test_parser"); test_parser_run();
     banner("test_dsl");    test_dsl_run();
+    banner("test_sim");    test_sim_run();
 
     int passed = g_test_ctx.passed - start_pass;
     int failed = g_test_ctx.failed - start_fail;

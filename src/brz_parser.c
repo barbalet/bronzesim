@@ -318,6 +318,36 @@ static bool parse_resources_block(Parser* p, ParsedConfig* cfg)
         const char* name=NULL;
         if(!expect_word(p, &name)) return false;
 
+        if(brz_streq(name, "resource"))
+        {
+            Token* start=cur(p);
+            const char* resource_name=NULL;
+            if(!expect_word(p,&resource_name) || !expect(p,TK_LBRACE,"'{'")) return false;
+            ResourceDef rd; memset(&rd,0,sizeof(rd));
+            rd.name=brz_strdup(resource_name); rd.capacity=10.0; rd.renew=0.01;
+            rd.market_target=1.0; rd.line=start?start->line:0;
+            if(!rd.name) return false;
+            while(!accept(p,TK_RBRACE)){
+                const char* key=NULL; Token* value=cur(p);
+                if(!expect_word(p,&key) || !value) goto resource_free;
+                if(brz_streq(key,"habitat")){
+                    const char* habitat=NULL; if(!expect_word(p,&habitat)) goto resource_free;
+                    free(rd.habitat); rd.habitat=brz_strdup(habitat); if(!rd.habitat) goto resource_free;
+                } else {
+                    double number=0.0; if(!expect_num(p,&number)) goto resource_free;
+                    if(brz_streq(key,"capacity")) rd.capacity=number;
+                    else if(brz_streq(key,"renew")) rd.renew=number;
+                    else if(brz_streq(key,"nutrition")) rd.nutrition=number;
+                    else if(brz_streq(key,"market_target")) rd.market_target=number;
+                    else { fprintf(stderr,"SyntaxError:%d:%d: Unknown resource field '%s'\n",value->line,value->col,key); goto resource_free; }
+                }
+            }
+            if(kind_table_add(&cfg->resource_kinds,resource_name)<0 || !brz_vec_push(&cfg->resources,&rd)) goto resource_free;
+            continue;
+resource_free:
+            free(rd.name); free(rd.habitat); return false;
+        }
+
         Token* t = cur(p);
         if(!t){ fprintf(stderr, "SyntaxError: Unexpected EOF\n"); return false; }
 
@@ -347,6 +377,70 @@ static bool parse_resources_block(Parser* p, ParsedConfig* cfg)
         {
             fprintf(stderr, "SyntaxError:%d:%d: Expected number or identifier\n", t->line, t->col);
             return false;
+        }
+    }
+    return true;
+}
+
+/* recipes { recipe NAME { output KIND AMOUNT; input KIND AMOUNT; ... } } */
+static bool parse_recipes_block(Parser* p, ParsedConfig* cfg)
+{
+    if(!expect(p,TK_LBRACE,"'{'")) return false;
+    while(!accept(p,TK_RBRACE)){
+        Token* first=cur(p); const char* keyword=NULL; const char* name=NULL;
+        if(!expect_word(p,&keyword) || !brz_streq(keyword,"recipe") || !expect_word(p,&name) || !expect(p,TK_LBRACE,"'{'")) return false;
+        RecipeDef r; memset(&r,0,sizeof(r)); r.name=brz_strdup(name); r.output_amount=1.0;
+        r.line=first?first->line:0; brz_vec_init(&r.inputs,sizeof(RecipeInputDef));
+        if(!r.name) return false;
+        while(!accept(p,TK_RBRACE)){
+            const char* key=NULL; const char* kind=NULL; double amount=0;
+            if(!expect_word(p,&key) || !expect_word(p,&kind) || !expect_num(p,&amount)) goto recipe_fail;
+            if(brz_streq(key,"output")){
+                if(r.output) { fprintf(stderr,"SyntaxError:%d: duplicate recipe output\n",r.line); goto recipe_fail; }
+                r.output=brz_strdup(kind); r.output_amount=amount; if(!r.output) goto recipe_fail;
+            } else if(brz_streq(key,"input")) {
+                RecipeInputDef in; in.kind=brz_strdup(kind); in.amount=amount;
+                if(!in.kind || !brz_vec_push(&r.inputs,&in)){ free(in.kind); goto recipe_fail; }
+            } else { fprintf(stderr,"SyntaxError:%d: expected recipe input or output\n",r.line); goto recipe_fail; }
+        }
+        if(!r.output || r.inputs.len==0 || !brz_vec_push(&cfg->recipes,&r)) goto recipe_fail;
+        continue;
+recipe_fail:
+        free(r.name); free(r.output);
+        for(size_t i=0;i<r.inputs.len;i++) free(((RecipeInputDef*)brz_vec_at(&r.inputs,i))->kind);
+        brz_vec_destroy(&r.inputs); return false;
+    }
+    return true;
+}
+
+/* actions { action NAME MIN MAX } */
+static bool parse_actions_block(Parser* p, ParsedConfig* cfg)
+{
+    if(!expect(p,TK_LBRACE,"'{'")) return false;
+    while(!accept(p,TK_RBRACE)){
+        Token* t=cur(p); const char* kw=NULL; const char* name=NULL; double min=0,max=0;
+        if(!expect_word(p,&kw) || !brz_streq(kw,"action") || !expect_word(p,&name) || !expect_num(p,&min) || !expect_num(p,&max)) return false;
+        ActionDef a; a.name=brz_strdup(name); a.min_args=(int)min; a.max_args=(int)max; a.line=t?t->line:0;
+        if(!a.name || !brz_vec_push(&cfg->actions,&a)){ free(a.name); return false; }
+    }
+    return true;
+}
+
+/* settlement_policy { food_fallback grain deposit_threshold 2 rest_recovery .04 } */
+static bool parse_settlement_policy(Parser* p, ParsedConfig* cfg)
+{
+    if(!expect(p,TK_LBRACE,"'{'")) return false;
+    while(!accept(p,TK_RBRACE)){
+        const char* key=NULL; if(!expect_word(p,&key)) return false;
+        if(brz_streq(key,"food_fallback")){
+            const char* val=NULL; if(!expect_word(p,&val)) return false;
+            free(cfg->settlement_policy.food_fallback); cfg->settlement_policy.food_fallback=brz_strdup(val);
+            if(!cfg->settlement_policy.food_fallback) return false;
+        } else {
+            double val=0; if(!expect_num(p,&val)) return false;
+            if(brz_streq(key,"deposit_threshold")) cfg->settlement_policy.deposit_threshold=val;
+            else if(brz_streq(key,"rest_recovery")) cfg->settlement_policy.rest_recovery=val;
+            else return false;
         }
     }
     return true;
@@ -680,6 +774,7 @@ static bool parse_task(Parser* p, VocationDef* voc)
 
 static bool parse_rule(Parser* p, VocationDef* voc)
 {
+    Token* start=cur(p);
     const char* name=NULL;
     if(!expect_word(p, &name)) return false;
 
@@ -767,6 +862,7 @@ static bool parse_rule(Parser* p, VocationDef* voc)
     r.when_expr = when_expr ? when_expr : brz_strdup("true");
     r.do_task = do_task ? do_task : brz_strdup("");
     r.weight = weight;
+    r.line = start ? start->line : 0;
     if(!r.name || !r.when_expr || !r.do_task) return false;
 
     if(!brz_vec_push(&voc->rules, &r)) return false;
@@ -900,6 +996,18 @@ bool brz_parse_file(const char* path, ParsedConfig* out_cfg)
         {
             if(!parse_vocations(&p, out_cfg)){ free(src); free_lexer(&lx); return false; }
         }
+        else if(brz_streq(top, "recipes"))
+        {
+            if(!parse_recipes_block(&p, out_cfg)){ free(src); free_lexer(&lx); return false; }
+        }
+        else if(brz_streq(top, "actions"))
+        {
+            if(!parse_actions_block(&p, out_cfg)){ free(src); free_lexer(&lx); return false; }
+        }
+        else if(brz_streq(top, "settlement_policy"))
+        {
+            if(!parse_settlement_policy(&p, out_cfg)){ free(src); free_lexer(&lx); return false; }
+        }
         else
         {
             fprintf(stderr, "SyntaxError:%d:%d: Unknown top-level section '%s'\n", t->line, t->col, top);
@@ -909,6 +1017,7 @@ bool brz_parse_file(const char* path, ParsedConfig* out_cfg)
         }
     }
 
+    if(!brz_cfg_validate(out_cfg, stderr)){ free(src); free_lexer(&lx); return false; }
     free(src);
     free_lexer(&lx);
     return true;

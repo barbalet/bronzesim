@@ -15,16 +15,15 @@ static double* tile_cap_ptr(BrzWorld* w, int x, int y, size_t res_n){
     return &w->cap[(size_t)(y*w->w + x) * res_n];
 }
 
-static uint16_t tag_for_resource_name(const char* nm){
-    if(!nm) return 0;
-    if(brz_streq(nm,"fish")) return BRZ_TAG_COAST;
-    if(brz_streq(nm,"grain")) return BRZ_TAG_FIELD;
-    if(brz_streq(nm,"wood")) return BRZ_TAG_FOREST;
-    if(brz_streq(nm,"clay")) return BRZ_TAG_CLAYPIT;
-    if(brz_streq(nm,"copper")) return BRZ_TAG_MINE_CU;
-    if(brz_streq(nm,"tin")) return BRZ_TAG_MINE_SN;
-    if(brz_streq(nm,"fire")) return BRZ_TAG_FIRE;
-    if(brz_streq(nm,"charcoal")) return BRZ_TAG_FOREST;
+static uint16_t tag_for_habitat(const char* habitat){
+    if(!habitat) return 0;
+    if(brz_streq(habitat,"coast")) return BRZ_TAG_COAST;
+    if(brz_streq(habitat,"field")) return BRZ_TAG_FIELD;
+    if(brz_streq(habitat,"forest")) return BRZ_TAG_FOREST;
+    if(brz_streq(habitat,"claypit")) return BRZ_TAG_CLAYPIT;
+    if(brz_streq(habitat,"mine_copper")) return BRZ_TAG_MINE_CU;
+    if(brz_streq(habitat,"mine_tin")) return BRZ_TAG_MINE_SN;
+    if(brz_streq(habitat,"fire")) return BRZ_TAG_FIRE;
     return 0;
 }
 
@@ -72,7 +71,8 @@ int brz_world_init(BrzWorld* world, const ParsedConfig* cfg, int w, int h, size_
         char key[128];
         snprintf(key, sizeof(key), "%s_renew", rn?rn:"");
         /* cfg params are in cfg->params array; easiest is to use small helper: */
-        double v = 0.01;
+        const ResourceDef* def = brz_resource_find(cfg,rn);
+        double v = def ? def->renew : 0.01;
         for(size_t i=0;i<cfg->params.len;i++){
             const ParamDef* p = (const ParamDef*)brz_vec_cat(&cfg->params, i);
             if(p->key && brz_streq(p->key, key) && !p->has_svalue){
@@ -122,11 +122,11 @@ int brz_world_init(BrzWorld* world, const ParsedConfig* cfg, int w, int h, size_
             double* c = tile_cap_ptr(world,x,y,res_n);
             for(size_t rid=0; rid<res_n; rid++){
                 const char* rn = kind_table_name(&cfg->resource_kinds, (int)rid);
-                uint16_t need = tag_for_resource_name(rn);
-                double cap = 10.0;
+                const ResourceDef* def=brz_resource_find(cfg,rn);
+                uint16_t need = tag_for_habitat(def ? def->habitat : NULL);
+                double cap = def ? def->capacity : 10.0;
                 if(need && (t & need)) cap = 100.0;
-                if((t & BRZ_TAG_FIELD) && brz_streq(rn,"grain")) cap = 200.0;
-                if((t & BRZ_TAG_COAST) && brz_streq(rn,"fish")) cap = 200.0;
+                if(need && !(t & need)) cap = 0.0;
                 c[rid] = cap;
                 r[rid] = cap * 0.5; /* start half full */
             }

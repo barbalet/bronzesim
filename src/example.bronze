@@ -13,6 +13,18 @@ kinds {
   }
 }
 
+# Runtime verbs are declared by content.  The engine supplies handlers for
+# these portable actions; a scenario may expose only the ones it uses.
+actions {
+  action gather 1 2
+  action craft 1 2
+  action trade 2 2
+  action rest 0 0
+  action move_to 1 1
+  action roam 0 1
+  action wander 0 1
+}
+
 # BRONZESIM example.bronze
  
 # This is a BRONZESIM Domain-Specific Language (DSL) file.
@@ -68,6 +80,32 @@ resources {
   charcoal_renew 0.02
   religion_renew 0.002
   tribalism_renew 0.0005
+
+  # Resource ecology and social value are scenario data, not C branches.
+  resource fish { habitat coast capacity 200 renew 0.12 nutrition 0.20 market_target 100 }
+  resource grain { habitat field capacity 200 renew 0.09 nutrition 0.20 market_target 100 }
+  resource wood { habitat forest capacity 100 renew 0.05 nutrition 0 market_target 50 }
+  resource clay { habitat claypit capacity 100 renew 0.02 nutrition 0 market_target 25 }
+  resource copper { habitat mine_copper capacity 100 renew 0.005 nutrition 0 market_target 20 }
+  resource tin { habitat mine_tin capacity 100 renew 0.002 nutrition 0 market_target 20 }
+  resource fire { habitat fire capacity 100 renew 0.12 nutrition 0 market_target 10 }
+  resource plant_fiber { habitat field capacity 50 renew 0.06 nutrition 0 market_target 25 }
+  resource cattle { habitat field capacity 25 renew 0.02 nutrition 0.25 market_target 20 }
+  resource sheep { habitat field capacity 25 renew 0.02 nutrition 0.20 market_target 20 }
+  resource pig { habitat forest capacity 25 renew 0.02 nutrition 0.20 market_target 20 }
+  resource charcoal { habitat forest capacity 50 renew 0.02 nutrition 0 market_target 25 }
+  resource religion { habitat field capacity 10 renew 0.002 nutrition 0 market_target 5 }
+  resource tribalism { habitat field capacity 10 renew 0.0005 nutrition 0 market_target 5 }
+}
+
+recipes {
+  recipe tool { output tool 1 input copper 1 input tin 1 input charcoal 1 }
+  recipe pot { output pot 1 input clay 2 }
+}
+
+settlement_policy {
+  deposit_threshold 2
+  rest_recovery 0.04
 }
 
 vocations {
@@ -1307,4 +1345,3 @@ vocations {
   }
 
 }
-
