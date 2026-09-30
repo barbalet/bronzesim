@@ -409,7 +409,7 @@ The vector and ownership boundary are documented in `scenario-runtime/README.md`
 
 ## Phase 4 status
 
-Started 2026-09-30.  Parsing now compiles declared action names to stable
+Completed 2026-09-30.  Parsing now compiles declared action names to stable
 `BrzActionCode` values; resolves resource, item, recipe, and terrain-query
 operands to typed ids; and rejects an unsupported action, unknown terrain
 query, or undeclared action operand with the statement's source line. Recipe
@@ -420,7 +420,9 @@ the declared first-choice nutrition policy.
 
 New parser coverage proves that unknown terrain and gather operands fail before
 the simulation starts. `make test` passed with 1,764 tests on 2026-09-30.
-The remaining Phase 4 work is to replace the free-form rule/`when` expression
-evaluator with a typed condition representation. Settlement default values are
-now initialized once as documented legacy policy defaults, validated, and no
-longer introduced by execution-time fallback branches.
+Rule and nested `when` expressions now compile to typed condition operands for
+`hunger`, `fatigue`, `prob`, booleans, and one `and`/`or` join; unknown or
+malformed conditions fail at their source line. The documented legacy `hungry`
+form compiles to `hunger > 0.7`. Settlement default values are initialized once
+as documented legacy policy defaults, validated, and no longer introduced by
+execution-time fallback branches. The full suite passed 1,764 tests.

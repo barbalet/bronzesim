@@ -379,6 +379,39 @@ static int named_exists(const BrzVec* values, size_t name_offset, const char* na
     return 0;
 }
 
+static int condition_atom(const char* text, BrzConditionKind* kind, BrzCompareCode* cmp, double* value)
+{
+    char name[32]={0}, op[3]={0}; double number=0;
+    while(*text==' ') text++;
+    if(strcmp(text,"true")==0){ *kind=BRZ_COND_TRUE; *cmp=BRZ_CMP_TRUTHY; *value=1; return 1; }
+    if(strcmp(text,"false")==0){ *kind=BRZ_COND_FALSE; *cmp=BRZ_CMP_TRUTHY; *value=0; return 1; }
+    if(strcmp(text,"hungry")==0){ *kind=BRZ_COND_HUNGER; *cmp=BRZ_CMP_GT; *value=.7; return 1; }
+    if(sscanf(text,"prob %lf",&number)==1 || sscanf(text,"chance(%lf)",&number)==1){ *kind=BRZ_COND_PROB; *cmp=BRZ_CMP_TRUTHY; *value=number; return number>=0 && number<=1; }
+    if(sscanf(text,"%31s %2[<>=!] %lf",name,op,&number)!=3) return 0;
+    if(brz_streq(name,"hunger")) *kind=BRZ_COND_HUNGER;
+    else if(brz_streq(name,"fatigue")) *kind=BRZ_COND_FATIGUE;
+    else return 0;
+    if(strcmp(op,">")==0) *cmp=BRZ_CMP_GT; else if(strcmp(op,"<")==0) *cmp=BRZ_CMP_LT;
+    else if(strcmp(op,">=")==0) *cmp=BRZ_CMP_GE; else if(strcmp(op,"<=")==0) *cmp=BRZ_CMP_LE;
+    else if(strcmp(op,"==")==0) *cmp=BRZ_CMP_EQ; else if(strcmp(op,"!=")==0) *cmp=BRZ_CMP_NE; else return 0;
+    *value=number; return 1;
+}
+
+int brz_condition_compile(const char* expression, CompiledCondition* condition, int line, FILE* errors)
+{
+    const char* join; char left[128], right[128]; size_t n;
+    if(!condition) return 0; memset(condition,0,sizeof(*condition));
+    if(!expression || !*expression) expression="true";
+    join=strstr(expression," and "); condition->join_or=0;
+    if(!join){ join=strstr(expression," or "); condition->join_or=1; }
+    if(join){ n=(size_t)(join-expression); if(n>=sizeof(left)) goto bad; memcpy(left,expression,n); left[n]=0;
+        strncpy(right,join+(condition->join_or?4:5),sizeof(right)-1); right[sizeof(right)-1]=0; condition->terms=2;
+        if(!condition_atom(left,&condition->kind[0],&condition->comparison[0],&condition->value[0]) || !condition_atom(right,&condition->kind[1],&condition->comparison[1],&condition->value[1])) goto bad;
+    } else { condition->terms=1; if(!condition_atom(expression,&condition->kind[0],&condition->comparison[0],&condition->value[0])) goto bad; }
+    return 1;
+bad: if(errors) fprintf(errors,"ValidationError:%d: invalid or unknown condition '%s'\n",line,expression); return 0;
+}
+
 static int validate_stmts(const ParsedConfig* cfg, const BrzVec* statements, const char* vocation, FILE* errors)
 {
     int ok=1;
@@ -491,7 +524,7 @@ static int compile_stmts(ParsedConfig* cfg, BrzVec* statements, const char* voca
     for(size_t i=0;i<statements->len;i++){
         StmtDef* st=(StmtDef*)brz_vec_at(statements,i);
         if(st->kind==ST_CHANCE){ if(!compile_stmts(cfg,&st->as.chance.body,vocation,errors)) ok=0; continue; }
-        if(st->kind==ST_WHEN){ if(!compile_stmts(cfg,&st->as.when_stmt.body,vocation,errors)) ok=0; continue; }
+        if(st->kind==ST_WHEN){ if(!brz_condition_compile(st->as.when_stmt.when_expr,&st->as.when_stmt.condition,st->line,errors)) ok=0; if(!compile_stmts(cfg,&st->as.when_stmt.body,vocation,errors)) ok=0; continue; }
         OpDef* op=&st->as.op;
         op->action_code=brz_action_code(op->op);
         op->arg0_resource_id=kind_table_find(&cfg->resource_kinds,op->a0);
@@ -552,6 +585,10 @@ bool brz_cfg_compile(ParsedConfig* cfg, FILE* errors)
     }
     for(size_t i=0;i<cfg->vocations.len;i++){
         VocationDef* vocation=(VocationDef*)brz_vec_at(&cfg->vocations,i);
+        for(size_t j=0;j<vocation->rules.len;j++){
+            RuleDef* rule=(RuleDef*)brz_vec_at(&vocation->rules,j);
+            if(!brz_condition_compile(rule->when_expr,&rule->condition,rule->line,errors)) ok=0;
+        }
         for(size_t j=0;j<vocation->tasks.len;j++)
             if(!compile_stmts(cfg,&((TaskDef*)brz_vec_at(&vocation->tasks,j))->stmts,vocation->name,errors)) ok=0;
     }

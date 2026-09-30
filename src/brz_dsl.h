@@ -47,6 +47,10 @@ typedef enum {
     ST_WHEN
 } StmtKind;
 
+typedef enum { BRZ_COND_INVALID=-1, BRZ_COND_TRUE, BRZ_COND_FALSE, BRZ_COND_HUNGER, BRZ_COND_FATIGUE, BRZ_COND_PROB } BrzConditionKind;
+typedef enum { BRZ_CMP_TRUTHY, BRZ_CMP_GT, BRZ_CMP_LT, BRZ_CMP_GE, BRZ_CMP_LE, BRZ_CMP_EQ, BRZ_CMP_NE } BrzCompareCode;
+typedef struct { BrzConditionKind kind[2]; BrzCompareCode comparison[2]; double value[2]; int join_or; int terms; } CompiledCondition;
+
 typedef struct StmtDef StmtDef;
 
 struct StmtDef {
@@ -55,7 +59,7 @@ struct StmtDef {
     union {
         OpDef op;
         struct { double chance_pct; BrzVec body; } chance;    /* percent 0..100 */
-        struct { char* when_expr; BrzVec body; } when_stmt;   /* expr string */
+        struct { char* when_expr; CompiledCondition condition; BrzVec body; } when_stmt;
     } as;
 };
 
@@ -70,6 +74,7 @@ typedef struct {
     char* do_task;   /* task name */
     int weight;
     int line;
+    CompiledCondition condition;
 } RuleDef;
 
 typedef struct {
@@ -184,5 +189,6 @@ bool brz_cfg_validate(const ParsedConfig* cfg, FILE* errors);
 bool brz_cfg_compile(ParsedConfig* cfg, FILE* errors);
 int brz_action_code(const char* name);
 uint16_t brz_terrain_query(const char* name);
+int brz_condition_compile(const char* expression, CompiledCondition* condition, int line, FILE* errors);
 
 #endif /* BRZ_DSL_H */

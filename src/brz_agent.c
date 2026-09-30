@@ -133,6 +133,23 @@ static int eval_when_expr(const char* expr, const BronzeActorPort* actor, const 
     return v ? 1 : 0;
 }
 
+static int eval_compiled_condition(const CompiledCondition* condition, const BronzeActorPort* actor, BrzRng* rng)
+{
+    int values[2]={0,0};
+    if(!condition || condition->terms<1 || condition->terms>2) return 0;
+    for(int i=0;i<condition->terms;i++){
+        double lhs=0, rhs=condition->value[i];
+        if(condition->kind[i]==BRZ_COND_TRUE) values[i]=1;
+        else if(condition->kind[i]==BRZ_COND_FALSE) values[i]=0;
+        else if(condition->kind[i]==BRZ_COND_PROB) values[i]=(int)(brz_rng_u32(rng)%10000u) < (int)(clamp01(rhs)*10000.0);
+        else {
+            lhs=actor->need(actor->context,condition->kind[i]==BRZ_COND_HUNGER ? "hunger" : "fatigue");
+            switch(condition->comparison[i]){ case BRZ_CMP_GT: values[i]=lhs>rhs; break; case BRZ_CMP_LT: values[i]=lhs<rhs; break; case BRZ_CMP_GE: values[i]=lhs>=rhs; break; case BRZ_CMP_LE: values[i]=lhs<=rhs; break; case BRZ_CMP_EQ: values[i]=lhs==rhs; break; case BRZ_CMP_NE: values[i]=lhs!=rhs; break; default: values[i]=lhs!=0; }
+        }
+    }
+    return condition->terms==1 ? values[0] : (condition->join_or ? values[0]||values[1] : values[0]&&values[1]);
+}
+
 /* ---- Recipes (compiled from scenario content) ---- */
 static int craft_with_recipe(BronzeActorPort* actor, const RecipeDef* recipe, double n){
     if(!recipe || recipe->output_amount<=0) return 0;
@@ -362,7 +379,7 @@ static void exec_stmt(BronzeActorPort* actor, const ParsedConfig* cfg, BronzeWor
             exec_stmts_vec(actor, cfg, world, settlements, &st->as.chance.body, rng, events, day);
         }
     }else if(st->kind == ST_WHEN){
-        if(eval_when_expr(st->as.when_stmt.when_expr, actor, cfg, rng)){
+        if(eval_compiled_condition(&st->as.when_stmt.condition, actor, rng)){
             exec_stmts_vec(actor, cfg, world, settlements, &st->as.when_stmt.body, rng, events, day);
         }
     }
@@ -431,7 +448,7 @@ static const RuleDef* pick_rule(const BrzAgent* a, const BronzeActorPort* actor,
         const RuleDef* r = (const RuleDef*)brz_vec_cat(&a->voc->rules, i);
         int ok = 1;
         if(r->when_expr && r->when_expr[0]){
-            ok = eval_when_expr(r->when_expr, actor, cfg, rng);
+            ok = eval_compiled_condition(&r->condition, actor, rng);
         }
         if(ok){
             int w = (r->weight > 0) ? r->weight : 1;
@@ -446,7 +463,7 @@ static const RuleDef* pick_rule(const BrzAgent* a, const BronzeActorPort* actor,
         const RuleDef* r = (const RuleDef*)brz_vec_cat(&a->voc->rules, i);
         int ok = 1;
         if(r->when_expr && r->when_expr[0]){
-            ok = eval_when_expr(r->when_expr, actor, cfg, rng);
+            ok = eval_compiled_condition(&r->condition, actor, rng);
         }
         if(ok){
             int w = (r->weight > 0) ? r->weight : 1;
