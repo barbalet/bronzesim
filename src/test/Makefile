@@ -12,6 +12,7 @@ SRC_C = \
   ../brz_parser.c \
   ../brz_settlement.c \
   ../brz_sim.c \
+  ../brz_state.c \
   ../brz_util.c \
   ../brz_vec.c \
   ../brz_world.c \
