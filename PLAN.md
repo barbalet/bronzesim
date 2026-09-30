@@ -375,7 +375,12 @@ household, water point, civilian/water-technician roles, water/work needs,
 staffed water provision, and water closure.
 
 The declarations intentionally identify external navigation/map assets rather
-than embedding geometry.  Runtime execution of the generic service model and
-compilation in the Mosul repository remain Phase 2 work; do not begin Phase 3
-until the fixture runs through a small local Mosul-style adapter and the C99
-suite is verified after Xcode license acceptance.
+than embedding geometry.  A commit-ready Mosul adapter now binds a named
+generic service to its validated place and provider role, with a standalone
+Mosul test fixture for water provision.  Runtime execution of generic service
+policy in the full Mosul loop is intentionally deferred: Phase 2 establishes
+the compiler/adapter seam, not a second population runtime.
+
+Phase 2 implementation is complete when the BronzeSim and Mosul C99 suites
+pass after the Xcode license is accepted.  Do not begin Phase 3 until that
+verification and the two-repository commits are complete.
