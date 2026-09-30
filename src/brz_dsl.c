@@ -225,6 +225,12 @@ static void action_free(ActionDef* a)
     free(a->name);
     memset(a, 0, sizeof(*a));
 }
+static void map_ref_free(MapRefDef* d) { free(d->id); memset(d,0,sizeof(*d)); }
+static void place_free(PlaceDef* d) { free(d->name); free(d->kind); free(d->map_ref); memset(d,0,sizeof(*d)); }
+static void role_free(RoleDef* d) { free(d->name); free(d->workplace); memset(d,0,sizeof(*d)); }
+static void need_free(NeedDef* d) { free(d->name); memset(d,0,sizeof(*d)); }
+static void service_free(ServiceDef* d) { free(d->name); free(d->provider_role); free(d->recipient_role); free(d->place); free(d->input); free(d->output); memset(d,0,sizeof(*d)); }
+static void disruption_free(DisruptionDef* d) { free(d->name); free(d->affects); memset(d,0,sizeof(*d)); }
 
 void brz_cfg_init(ParsedConfig* cfg)
 {
@@ -234,12 +240,19 @@ void brz_cfg_init(ParsedConfig* cfg)
     cfg->years = 60;
     cfg->agent_count = 0;
     cfg->settlement_count = 0;
+    cfg->language_version = 1;
     kind_table_init(&cfg->resource_kinds);
     kind_table_init(&cfg->item_kinds);
     brz_vec_init(&cfg->params, sizeof(ParamDef));
     brz_vec_init(&cfg->resources, sizeof(ResourceDef));
     brz_vec_init(&cfg->recipes, sizeof(RecipeDef));
     brz_vec_init(&cfg->actions, sizeof(ActionDef));
+    brz_vec_init(&cfg->map_refs,sizeof(MapRefDef));
+    brz_vec_init(&cfg->places,sizeof(PlaceDef));
+    brz_vec_init(&cfg->roles,sizeof(RoleDef));
+    brz_vec_init(&cfg->needs,sizeof(NeedDef));
+    brz_vec_init(&cfg->services,sizeof(ServiceDef));
+    brz_vec_init(&cfg->disruptions,sizeof(DisruptionDef));
     brz_vec_init(&cfg->vocations, sizeof(VocationDef));
 }
 
@@ -260,6 +273,19 @@ void brz_cfg_free(ParsedConfig* cfg)
     brz_vec_destroy(&cfg->recipes);
     for(size_t i=0;i<cfg->actions.len;i++) action_free((ActionDef*)brz_vec_at(&cfg->actions,i));
     brz_vec_destroy(&cfg->actions);
+    for(size_t i=0;i<cfg->map_refs.len;i++) map_ref_free((MapRefDef*)brz_vec_at(&cfg->map_refs,i));
+    brz_vec_destroy(&cfg->map_refs);
+    for(size_t i=0;i<cfg->places.len;i++) place_free((PlaceDef*)brz_vec_at(&cfg->places,i));
+    brz_vec_destroy(&cfg->places);
+    for(size_t i=0;i<cfg->roles.len;i++) role_free((RoleDef*)brz_vec_at(&cfg->roles,i));
+    brz_vec_destroy(&cfg->roles);
+    for(size_t i=0;i<cfg->needs.len;i++) need_free((NeedDef*)brz_vec_at(&cfg->needs,i));
+    brz_vec_destroy(&cfg->needs);
+    for(size_t i=0;i<cfg->services.len;i++) service_free((ServiceDef*)brz_vec_at(&cfg->services,i));
+    brz_vec_destroy(&cfg->services);
+    for(size_t i=0;i<cfg->disruptions.len;i++) disruption_free((DisruptionDef*)brz_vec_at(&cfg->disruptions,i));
+    brz_vec_destroy(&cfg->disruptions);
+    free(cfg->scenario_profile);
     free(cfg->settlement_policy.food_fallback);
 
     for(size_t i=0;i<cfg->vocations.len;i++)
@@ -316,6 +342,16 @@ const ActionDef* brz_action_find(const ParsedConfig* cfg, const char* name)
     return NULL;
 }
 
+static int named_exists(const BrzVec* values, size_t name_offset, const char* name)
+{
+    if(!name) return 0;
+    for(size_t i=0;i<values->len;i++){
+        const char* const* candidate=(const char* const*)((const char*)brz_vec_cat(values,i)+name_offset);
+        if(*candidate && brz_streq(*candidate,name)) return 1;
+    }
+    return 0;
+}
+
 static int validate_stmts(const ParsedConfig* cfg, const BrzVec* statements, const char* vocation, FILE* errors)
 {
     int ok=1;
@@ -342,6 +378,7 @@ bool brz_cfg_validate(const ParsedConfig* cfg, FILE* errors)
 {
     int ok=1;
     if(!errors) errors=stderr;
+    if(cfg->language_version != 1){ fprintf(errors,"ValidationError: unsupported scenario language version %d\n",cfg->language_version); ok=0; }
     for(size_t i=0;i<cfg->resources.len;i++){
         const ResourceDef* r=(const ResourceDef*)brz_vec_cat(&cfg->resources,i);
         if(kind_table_find(&cfg->resource_kinds,r->name)<0){
@@ -369,6 +406,42 @@ bool brz_cfg_validate(const ParsedConfig* cfg, FILE* errors)
             if(!brz_voc_find_task((VocationDef*)v,r->do_task) && !brz_action_find(cfg,r->do_task)){
                 fprintf(errors,"ValidationError: vocation '%s' rule '%s' references unknown task or action '%s'\n",v->name,r->name,r->do_task); ok=0;
             }
+        }
+    }
+    for(size_t i=0;i<cfg->places.len;i++){
+        const PlaceDef* place=(const PlaceDef*)brz_vec_cat(&cfg->places,i);
+        if(place->map_ref && !named_exists(&cfg->map_refs,offsetof(MapRefDef,id),place->map_ref)){
+            fprintf(errors,"ValidationError:%d: place '%s' references unknown map '%s'\n",place->line,place->name,place->map_ref); ok=0;
+        }
+    }
+    for(size_t i=0;i<cfg->roles.len;i++){
+        const RoleDef* role=(const RoleDef*)brz_vec_cat(&cfg->roles,i);
+        if(role->workplace && !named_exists(&cfg->places,offsetof(PlaceDef,name),role->workplace)){
+            fprintf(errors,"ValidationError:%d: role '%s' references unknown workplace '%s'\n",role->line,role->name,role->workplace); ok=0;
+        }
+    }
+    for(size_t i=0;i<cfg->services.len;i++){
+        const ServiceDef* service=(const ServiceDef*)brz_vec_cat(&cfg->services,i);
+        if(!named_exists(&cfg->roles,offsetof(RoleDef,name),service->provider_role)){
+            fprintf(errors,"ValidationError:%d: service '%s' references unknown provider role '%s'\n",service->line,service->name,service->provider_role); ok=0;
+        }
+        if(service->recipient_role && !named_exists(&cfg->roles,offsetof(RoleDef,name),service->recipient_role)){
+            fprintf(errors,"ValidationError:%d: service '%s' references unknown recipient role '%s'\n",service->line,service->name,service->recipient_role); ok=0;
+        }
+        if(!named_exists(&cfg->places,offsetof(PlaceDef,name),service->place)){
+            fprintf(errors,"ValidationError:%d: service '%s' references unknown place '%s'\n",service->line,service->name,service->place); ok=0;
+        }
+        if(service->input && kind_table_find(&cfg->resource_kinds,service->input)<0 && kind_table_find(&cfg->item_kinds,service->input)<0){
+            fprintf(errors,"ValidationError:%d: service '%s' references unknown input '%s'\n",service->line,service->name,service->input); ok=0;
+        }
+        if(service->output && kind_table_find(&cfg->resource_kinds,service->output)<0 && kind_table_find(&cfg->item_kinds,service->output)<0){
+            fprintf(errors,"ValidationError:%d: service '%s' references unknown output '%s'\n",service->line,service->name,service->output); ok=0;
+        }
+    }
+    for(size_t i=0;i<cfg->disruptions.len;i++){
+        const DisruptionDef* disruption=(const DisruptionDef*)brz_vec_cat(&cfg->disruptions,i);
+        if(!named_exists(&cfg->services,offsetof(ServiceDef,name),disruption->affects)){
+            fprintf(errors,"ValidationError:%d: disruption '%s' references unknown service '%s'\n",disruption->line,disruption->name,disruption->affects); ok=0;
         }
     }
     return ok!=0;

@@ -446,6 +446,121 @@ static bool parse_settlement_policy(Parser* p, ParsedConfig* cfg)
     return true;
 }
 
+/* Generic scenario declarations.  These compile content identifiers and leave
+   map geometry and runtime adapters outside the DSL. */
+static bool parse_scenario_block(Parser* p, ParsedConfig* cfg)
+{
+    if(!expect(p,TK_LBRACE,"'{'")) return false;
+    while(!accept(p,TK_RBRACE)){
+        const char* key=NULL;
+        if(!expect_word(p,&key)) return false;
+        if(brz_streq(key,"version")){ double v=0; if(!expect_num(p,&v)) return false; cfg->language_version=(int)v; }
+        else if(brz_streq(key,"profile")){ const char* value=NULL; if(!expect_word(p,&value)) return false; free(cfg->scenario_profile); cfg->scenario_profile=brz_strdup(value); if(!cfg->scenario_profile) return false; }
+        else return false;
+    }
+    return true;
+}
+
+static bool parse_map_refs_block(Parser* p, ParsedConfig* cfg)
+{
+    if(!expect(p,TK_LBRACE,"'{'")) return false;
+    while(!accept(p,TK_RBRACE)){
+        Token* start=cur(p); const char* keyword=NULL; const char* id=NULL;
+        MapRefDef def; memset(&def,0,sizeof(def));
+        if(!expect_word(p,&keyword) || !brz_streq(keyword,"map") || !expect_word(p,&id)) return false;
+        def.id=brz_strdup(id); def.line=start?start->line:0;
+        if(!def.id || !brz_vec_push(&cfg->map_refs,&def)){ free(def.id); return false; }
+    }
+    return true;
+}
+
+static bool parse_places_block(Parser* p, ParsedConfig* cfg)
+{
+    if(!expect(p,TK_LBRACE,"'{'")) return false;
+    while(!accept(p,TK_RBRACE)){
+        Token* start=cur(p); const char* keyword=NULL; const char* name=NULL; PlaceDef def;
+        memset(&def,0,sizeof(def)); def.capacity=0; def.line=start?start->line:0;
+        if(!expect_word(p,&keyword) || !brz_streq(keyword,"place") || !expect_word(p,&name) || !expect(p,TK_LBRACE,"'{'")) return false;
+        def.name=brz_strdup(name); if(!def.name) return false;
+        while(!accept(p,TK_RBRACE)){
+            const char* key=NULL; if(!expect_word(p,&key)) goto fail;
+            if(brz_streq(key,"kind") || brz_streq(key,"map_ref")){ const char* value=NULL; char** dst=brz_streq(key,"kind") ? &def.kind : &def.map_ref; if(!expect_word(p,&value)) goto fail; free(*dst); *dst=brz_strdup(value); if(!*dst) goto fail; }
+            else if(brz_streq(key,"capacity")){ if(!expect_num(p,&def.capacity)) goto fail; }
+            else goto fail;
+        }
+        if(!def.kind || !brz_vec_push(&cfg->places,&def)) goto fail;
+        continue;
+fail: free(def.name); free(def.kind); free(def.map_ref); return false;
+    }
+    return true;
+}
+
+static bool parse_roles_block(Parser* p, ParsedConfig* cfg)
+{
+    if(!expect(p,TK_LBRACE,"'{'")) return false;
+    while(!accept(p,TK_RBRACE)){
+        Token* start=cur(p); const char* keyword=NULL; const char* name=NULL; RoleDef def;
+        memset(&def,0,sizeof(def)); def.line=start?start->line:0;
+        if(!expect_word(p,&keyword) || !brz_streq(keyword,"role") || !expect_word(p,&name) || !expect(p,TK_LBRACE,"'{'")) return false;
+        def.name=brz_strdup(name); if(!def.name) return false;
+        while(!accept(p,TK_RBRACE)){ const char* key=NULL; if(!expect_word(p,&key)) goto fail; if(brz_streq(key,"workplace")){ const char* value=NULL; if(!expect_word(p,&value)) goto fail; free(def.workplace); def.workplace=brz_strdup(value); if(!def.workplace) goto fail; } else if(brz_streq(key,"min_age")){ if(!expect_num(p,&def.min_age)) goto fail; } else goto fail; }
+        if(!brz_vec_push(&cfg->roles,&def)) goto fail;
+        continue;
+fail: free(def.name); free(def.workplace); return false;
+    }
+    return true;
+}
+
+static bool parse_needs_block(Parser* p, ParsedConfig* cfg)
+{
+    if(!expect(p,TK_LBRACE,"'{'")) return false;
+    while(!accept(p,TK_RBRACE)){
+        Token* start=cur(p); const char* keyword=NULL; const char* name=NULL; const char* priority=NULL; NeedDef def;
+        memset(&def,0,sizeof(def)); def.line=start?start->line:0;
+        if(!expect_word(p,&keyword) || !brz_streq(keyword,"need") || !expect_word(p,&name) || !expect(p,TK_LBRACE,"'{'")) return false;
+        if(!expect_word(p,&priority) || !brz_streq(priority,"priority") || !expect_num(p,&def.priority) || !expect(p,TK_RBRACE,"'}'")) return false;
+        def.name=brz_strdup(name); if(!def.name || !brz_vec_push(&cfg->needs,&def)){ free(def.name); return false; }
+    }
+    return true;
+}
+
+static bool parse_services_block(Parser* p, ParsedConfig* cfg)
+{
+    if(!expect(p,TK_LBRACE,"'{'")) return false;
+    while(!accept(p,TK_RBRACE)){
+        Token* start=cur(p); const char* keyword=NULL; const char* name=NULL; ServiceDef def;
+        memset(&def,0,sizeof(def)); def.line=start?start->line:0;
+        if(!expect_word(p,&keyword) || !brz_streq(keyword,"service") || !expect_word(p,&name) || !expect(p,TK_LBRACE,"'{'")) return false;
+        def.name=brz_strdup(name); if(!def.name) return false;
+        while(!accept(p,TK_RBRACE)){
+            const char* key=NULL; const char* value=NULL; char** dst=NULL;
+            if(!expect_word(p,&key)) goto fail;
+            if(brz_streq(key,"price")){ if(!expect_num(p,&def.price)) goto fail; continue; }
+            if(!expect_word(p,&value)) goto fail;
+            if(brz_streq(key,"provider")) dst=&def.provider_role; else if(brz_streq(key,"recipient")) dst=&def.recipient_role; else if(brz_streq(key,"place")) dst=&def.place; else if(brz_streq(key,"input")) dst=&def.input; else if(brz_streq(key,"output")) dst=&def.output; else goto fail;
+            free(*dst); *dst=brz_strdup(value); if(!*dst) goto fail;
+        }
+        if(!def.provider_role || !def.place || !brz_vec_push(&cfg->services,&def)) goto fail;
+        continue;
+fail: free(def.name); free(def.provider_role); free(def.recipient_role); free(def.place); free(def.input); free(def.output); return false;
+    }
+    return true;
+}
+
+static bool parse_disruptions_block(Parser* p, ParsedConfig* cfg)
+{
+    if(!expect(p,TK_LBRACE,"'{'")) return false;
+    while(!accept(p,TK_RBRACE)){
+        Token* start=cur(p); const char* keyword=NULL; const char* name=NULL; const char* key=NULL; const char* affects=NULL; DisruptionDef def;
+        memset(&def,0,sizeof(def)); def.line=start?start->line:0;
+        if(!expect_word(p,&keyword) || !brz_streq(keyword,"disruption") || !expect_word(p,&name) || !expect(p,TK_LBRACE,"'{'")) return false;
+        if(!expect_word(p,&key) || !brz_streq(key,"affects") || !expect_word(p,&affects) || !expect(p,TK_RBRACE,"'}'")) return false;
+        def.name=brz_strdup(name); def.affects=brz_strdup(affects);
+        if(!def.name || !def.affects || !brz_vec_push(&cfg->disruptions,&def)){ free(def.name); free(def.affects); return false; }
+    }
+    return true;
+}
+
 static bool parse_items_block(Parser* p, ParsedConfig* cfg)
 {
     if(!expect(p, TK_LBRACE, "'{'")) return false;
@@ -967,6 +1082,34 @@ bool brz_parse_file(const char* path, ParsedConfig* out_cfg)
         if(brz_streq(top, "kinds"))
         {
             if(!parse_kinds(&p, out_cfg)){ free(src); free_lexer(&lx); return false; }
+        }
+        else if(brz_streq(top,"scenario"))
+        {
+            if(!parse_scenario_block(&p,out_cfg)){ free(src); free_lexer(&lx); return false; }
+        }
+        else if(brz_streq(top,"map_refs"))
+        {
+            if(!parse_map_refs_block(&p,out_cfg)){ free(src); free_lexer(&lx); return false; }
+        }
+        else if(brz_streq(top,"places"))
+        {
+            if(!parse_places_block(&p,out_cfg)){ free(src); free_lexer(&lx); return false; }
+        }
+        else if(brz_streq(top,"roles"))
+        {
+            if(!parse_roles_block(&p,out_cfg)){ free(src); free_lexer(&lx); return false; }
+        }
+        else if(brz_streq(top,"needs"))
+        {
+            if(!parse_needs_block(&p,out_cfg)){ free(src); free_lexer(&lx); return false; }
+        }
+        else if(brz_streq(top,"services"))
+        {
+            if(!parse_services_block(&p,out_cfg)){ free(src); free_lexer(&lx); return false; }
+        }
+        else if(brz_streq(top,"disruptions"))
+        {
+            if(!parse_disruptions_block(&p,out_cfg)){ free(src); free_lexer(&lx); return false; }
         }
         else if(brz_streq(top, "world"))
         {

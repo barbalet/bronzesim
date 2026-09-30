@@ -364,7 +364,18 @@ not take `BrzWorld *` or `BrzSettlement *`, and local adapters preserve the
 engine boundary.  Run `make test` after the Xcode license is accepted before
 marking the phase verified.
 
-Next, complete Phase 1, then implement Phase 2's small Mosul DSL fixture
-before any broad ApeSDK integration.  This establishes whether refactoring
-preserves BronzeSim behaviour and whether the DSL can represent Mosul services
-and places without pulling rendering or ApeSDK internals into authored content.
+## Phase 2 status
+
+Started 2026-09-30.  The compiler now recognizes a versioned `scenario`
+profile and generic `map_refs`, `places`, `roles`, `needs`, `services`, and
+`disruptions` declarations.  `ParsedConfig` owns these compiled definitions;
+its validation rejects unsupported language versions and unknown map, place,
+role, service, or disruption references.  A compact Mosul fixture covers a
+household, water point, civilian/water-technician roles, water/work needs,
+staffed water provision, and water closure.
+
+The declarations intentionally identify external navigation/map assets rather
+than embedding geometry.  Runtime execution of the generic service model and
+compilation in the Mosul repository remain Phase 2 work; do not begin Phase 3
+until the fixture runs through a small local Mosul-style adapter and the C99
+suite is verified after Xcode license acceptance.

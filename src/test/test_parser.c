@@ -180,6 +180,31 @@ static void test_parse_data_defined_economy(void)
     brz_cfg_free(&cfg);
 }
 
+static void test_parse_mosul_scenario_profile(void)
+{
+    const char* src =
+        "kinds { resources { water } items { } }\n"
+        "scenario { version 1 profile mosul }\n"
+        "map_refs { map mosul_navigation_v1 }\n"
+        "places { place al_hadidi_home { kind home map_ref mosul_navigation_v1 capacity 8 } place al_furat_water { kind water_point map_ref mosul_navigation_v1 capacity 10 } }\n"
+        "roles { role civilian { min_age 0 } role water_technician { workplace al_furat_water min_age 18 } }\n"
+        "needs { need water { priority 10 } need work { priority 4 } }\n"
+        "services { service water_provision { provider water_technician recipient civilian place al_furat_water input water output water price 2 } }\n"
+        "disruptions { disruption water_closure { affects water_provision } }\n";
+    ParsedConfig cfg; brz_cfg_init(&cfg);
+    TEST_ASSERT(parse_from_string(src,&cfg));
+    TEST_EQ_INT(cfg.language_version,1);
+    TEST_STREQ(cfg.scenario_profile,"mosul");
+    TEST_EQ_SIZE(cfg.map_refs.len,1);
+    TEST_EQ_SIZE(cfg.places.len,2);
+    TEST_EQ_SIZE(cfg.roles.len,2);
+    TEST_EQ_SIZE(cfg.needs.len,2);
+    TEST_EQ_SIZE(cfg.services.len,1);
+    TEST_EQ_SIZE(cfg.disruptions.len,1);
+    TEST_STREQ(((const ServiceDef*)brz_vec_cat(&cfg.services,0))->provider_role,"water_technician");
+    brz_cfg_free(&cfg);
+}
+
 static void test_parse_errors_return_false(void)
 {
     /* unknown top-level */
@@ -222,5 +247,6 @@ void test_parser_run(void)
     test_parse_world_agents_settlements_defaults();
     test_parse_task_stmt_variants();
     test_parse_data_defined_economy();
+    test_parse_mosul_scenario_profile();
     test_parse_errors_return_false();
 }

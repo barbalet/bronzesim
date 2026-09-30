@@ -98,6 +98,16 @@ typedef struct {
     int line;
 } ActionDef;
 
+typedef struct { char* id; int line; } MapRefDef;
+typedef struct { char* name; char* kind; char* map_ref; double capacity; int line; } PlaceDef;
+typedef struct { char* name; char* workplace; double min_age; int line; } RoleDef;
+typedef struct { char* name; double priority; int line; } NeedDef;
+typedef struct {
+    char* name; char* provider_role; char* recipient_role; char* place;
+    char* input; char* output; double price; int line;
+} ServiceDef;
+typedef struct { char* name; char* affects; int line; } DisruptionDef;
+
 typedef struct {
     char* food_fallback;
     double deposit_threshold;
@@ -110,6 +120,8 @@ typedef struct {
     int years;
     int agent_count;
     int settlement_count;
+    int language_version;
+    char* scenario_profile;
 
     /* kinds { resources { ... } items { ... } } */
     KindTable resource_kinds;
@@ -121,6 +133,12 @@ typedef struct {
     BrzVec resources; /* ResourceDef */
     BrzVec recipes;   /* RecipeDef */
     BrzVec actions;   /* ActionDef */
+    BrzVec map_refs;  /* MapRefDef */
+    BrzVec places;    /* PlaceDef */
+    BrzVec roles;     /* RoleDef */
+    BrzVec needs;     /* NeedDef */
+    BrzVec services;  /* ServiceDef */
+    BrzVec disruptions; /* DisruptionDef */
     SettlementPolicyDef settlement_policy;
 
     /* vocations { vocation X { ... } } */
