@@ -17,10 +17,10 @@ static void trace_event(void* context, const BronzeEvent* event)
     int written;
     if(!trace || !event || trace->used >= sizeof(trace->text)) return;
     written=snprintf(trace->text+trace->used, sizeof(trace->text)-trace->used,
-                     "%d|%u|%d|%s|%.3f|%d\n", (int)event->kind,
+                     "%d|%u|%d|%s|%.3f|%d|%d\n", (int)event->kind,
                      (unsigned)event->actor_id, event->settlement_id,
                      event->subject ? event->subject : "", event->amount,
-                     event->day);
+                     (int)event->result, event->day);
     if(written > 0){
         size_t added=(size_t)written;
         if(added >= sizeof(trace->text)-trace->used) trace->used=sizeof(trace->text)-1;
@@ -99,10 +99,10 @@ static void test_fixed_seed_emits_canonical_event_trace(void)
     TEST_EQ_INT(second.count,4);
     TEST_STREQ(first.text,second.text);
     TEST_STREQ(first.text,
-               "4|0|0|pause|1.000|1\n"
-               "3|0|0|rest|1.000|1\n"
-               "4|0|0|pause|1.000|2\n"
-               "3|0|0|rest|1.000|2\n");
+               "4|0|0|pause|1.000|0|1\n"
+               "3|0|0|rest|1.000|0|1\n"
+               "4|0|0|pause|1.000|0|2\n"
+               "3|0|0|rest|1.000|0|2\n");
     free_source(&config,path);
 }
 
@@ -120,6 +120,7 @@ static void test_recipe_consumes_inputs_and_emits_payload(void)
     BrzSettlement* settlements=NULL;
     BronzeWorldPort world_port;
     BronzeSettlementPort settlement_port;
+    BronzeActorPort actor_port;
     BrzAgent agent;
     BrzRng rng;
     EventTrace trace={0};
@@ -143,12 +144,13 @@ static void test_recipe_consumes_inputs_and_emits_payload(void)
     TEST_ASSERT(agent.res_inv!=NULL && agent.item_inv!=NULL);
     agent.res_inv[0]=2.0;
     brz_rng_seed(&rng,3);
-    brz_agent_step(&agent,&config,&world_port,&settlement_port,&rng,&sink,9);
+    bronze_actor_port_init(&actor_port,&agent);
+    brz_agent_step(&agent,&actor_port,&config,&world_port,&settlement_port,&rng,&sink,9);
     TEST_ASSERT(fabs(agent.res_inv[0]) < 0.000001);
     TEST_ASSERT(fabs(agent.item_inv[0]-1.0) < 0.000001);
     TEST_STREQ(trace.text,
-               "4|41|0|work|1.000|9\n"
-               "1|41|0|pot|1.000|9\n");
+               "4|41|0|work|1.000|0|9\n"
+               "1|41|0|pot|1.000|0|9\n");
 
     free(agent.res_inv); free(agent.item_inv);
     bronze_world_port_destroy(&world_port); bronze_settlement_port_destroy(&settlement_port);
@@ -171,6 +173,7 @@ static void test_unavailable_trade_preserves_inventory(void)
     BrzSettlement* settlements=NULL;
     BronzeWorldPort world_port;
     BronzeSettlementPort settlement_port;
+    BronzeActorPort actor_port;
     BrzAgent agent;
     BrzRng rng;
     EventTrace trace={0};
@@ -191,14 +194,15 @@ static void test_unavailable_trade_preserves_inventory(void)
     agent.res_n=2; agent.res_inv=(double*)calloc(2,sizeof(double));
     TEST_ASSERT(agent.res_inv!=NULL);
     brz_rng_seed(&rng,5);
-    brz_agent_step(&agent,&config,&world_port,&settlement_port,&rng,&sink,4);
+    bronze_actor_port_init(&actor_port,&agent);
+    brz_agent_step(&agent,&actor_port,&config,&world_port,&settlement_port,&rng,&sink,4);
     TEST_ASSERT(fabs(agent.res_inv[0]) < 0.000001);
     TEST_ASSERT(fabs(agent.res_inv[1]) < 0.000001);
     TEST_ASSERT(fabs(settlements[0].res_inv[0]) < 0.000001);
     TEST_ASSERT(fabs(settlements[0].res_inv[1]-9.0) < 0.000001);
     TEST_STREQ(trace.text,
-               "4|7|0|exchange|1.000|4\n"
-               "2|7|0|wood|1.000|4\n");
+               "4|7|0|exchange|1.000|0|4\n"
+               "2|7|0|wood|0.000|1|4\n");
 
     free(agent.res_inv);
     bronze_world_port_destroy(&world_port); bronze_settlement_port_destroy(&settlement_port);

@@ -309,8 +309,11 @@ int brz_run_with_events(const ParsedConfig* cfg, const BronzeEventSink* events)
         world_port.step_regen(world_port.context);
         brz_settlements_begin_day(setts, sett_n);
 
-        for(int i=0;i<agent_n;i++)
-            brz_agent_step(&agents[i], cfg, &world_port, &settlement_port, &rng, events, day);
+        for(int i=0;i<agent_n;i++){
+            BronzeActorPort actor_port;
+            bronze_actor_port_init(&actor_port,&agents[i]);
+            brz_agent_step(&agents[i], &actor_port, cfg, &world_port, &settlement_port, &rng, events, day);
+        }
 
         if(day==1 || (report_every>0 && day%report_every==0) || day==days)
             print_day_summary(day, cfg, setts, sett_n, agents, agent_n);

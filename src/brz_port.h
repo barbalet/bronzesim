@@ -18,12 +18,20 @@ typedef enum {
     BRZ_EVENT_RESTED, BRZ_EVENT_OCCUPATION_SELECTED, BRZ_EVENT_DEPOSITED
 } BronzeEventKind;
 
+typedef enum {
+    BRZ_RESULT_COMPLETED,
+    BRZ_RESULT_UNAVAILABLE,
+    BRZ_RESULT_DEFERRED,
+    BRZ_RESULT_INVALID
+} BronzeActionResult;
+
 typedef struct {
     BronzeEventKind kind;
     uint32_t actor_id;
     int settlement_id;
     const char* subject;
     double amount;
+    BronzeActionResult result;
     int day;
 } BronzeEvent;
 
@@ -40,6 +48,8 @@ void bronze_settlement_port_destroy(BronzeSettlementPort* port);
 struct BronzeWorldPort {
     void* context;
     uint16_t (*tags_at)(void* context, BrzPos pos);
+    double (*available)(void* context, BrzPos pos, int resource_id);
+    double (*reserve)(void* context, BrzPos pos, int resource_id, double amount);
     double (*take)(void* context, BrzPos pos, int resource_id, double amount);
     BrzPos (*nearest_tag)(void* context, BrzPos from, uint16_t tag, int max_radius);
     BrzPos (*clamp_position)(void* context, BrzPos position);
@@ -52,6 +62,16 @@ struct BronzeActorPort {
     BrzPos (*position)(void* context);
     void (*set_position)(void* context, BrzPos position);
     double (*need)(void* context, const char* name);
+    void (*need_add)(void* context, const char* name, double amount);
+    double (*resource_get)(void* context, int resource_id);
+    void (*resource_add)(void* context, int resource_id, double amount);
+    double (*item_get)(void* context, int item_id);
+    void (*item_add)(void* context, int item_id, double amount);
+    int (*home_settlement)(void* context);
+    int (*has_target)(void* context);
+    BrzPos (*target)(void* context);
+    void (*set_target)(void* context, BrzPos target);
+    void (*clear_target)(void* context);
 };
 
 struct BronzeSettlementPort {
@@ -68,6 +88,6 @@ struct BronzeSettlementPort {
 
 void bronze_event_emit(const BronzeEventSink* sink, BronzeEventKind kind,
                        uint32_t actor_id, int settlement_id, const char* subject,
-                       double amount, int day);
+                       double amount, BronzeActionResult result, int day);
 
 #endif

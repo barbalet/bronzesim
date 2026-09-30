@@ -10,6 +10,12 @@ typedef struct { BrzSettlement* settlements; int count; const ParsedConfig* conf
 
 static uint16_t local_tags_at(void* context, BrzPos position)
 { return brz_world_tags_at(((LocalWorld*)context)->world,position); }
+static double local_available(void* context, BrzPos position, int resource)
+{ LocalWorld* world=(LocalWorld*)context; return brz_world_peek(world->world,position,world->resource_count,resource); }
+/* The local engine is single-threaded, so reservation is an advisory capped
+   amount.  A concurrent adapter may replace this with a durable reservation. */
+static double local_reserve(void* context, BrzPos position, int resource, double amount)
+{ double available=local_available(context,position,resource); return available<amount ? available : amount; }
 static double local_take(void* context, BrzPos position, int resource, double amount)
 { LocalWorld* world=(LocalWorld*)context; return brz_world_take(world->world,position,world->resource_count,resource,amount); }
 static BrzPos local_nearest(void* context, BrzPos from, uint16_t tag, int radius)
@@ -31,7 +37,8 @@ void bronze_world_port_init(BronzeWorldPort* port, void* world, size_t resource_
     local=(LocalWorld*)malloc(sizeof(*local));
     if(!local){ memset(port,0,sizeof(*port)); return; }
     local->world=(BrzWorld*)world; local->resource_count=resource_count;
-    port->context=local; port->tags_at=local_tags_at; port->take=local_take;
+    port->context=local; port->tags_at=local_tags_at; port->available=local_available;
+    port->reserve=local_reserve; port->take=local_take;
     port->nearest_tag=local_nearest; port->clamp_position=local_clamp_position;
     port->step_regen=local_regen;
 }
@@ -47,12 +54,41 @@ static BrzPos local_actor_position(void* context) { return ((BrzAgent*)context)-
 static void local_actor_set_position(void* context, BrzPos pos) { ((BrzAgent*)context)->pos=pos; }
 static double local_actor_need(void* context, const char* name)
 { BrzAgent* actor=(BrzAgent*)context; return strcmp(name,"hunger")==0 ? actor->hunger : (strcmp(name,"fatigue")==0 ? actor->fatigue : 0.0); }
+static void local_actor_need_add(void* context, const char* name, double amount)
+{
+    BrzAgent* actor=(BrzAgent*)context;
+    double* need=strcmp(name,"hunger")==0 ? &actor->hunger : (strcmp(name,"fatigue")==0 ? &actor->fatigue : NULL);
+    if(!need) return;
+    *need+=amount;
+    if(*need<0) *need=0;
+    if(*need>1) *need=1;
+}
+static double local_actor_resource_get(void* context, int id)
+{ BrzAgent* actor=(BrzAgent*)context; return id>=0 && (size_t)id<actor->res_n ? actor->res_inv[id] : 0; }
+static void local_actor_resource_add(void* context, int id, double amount)
+{ BrzAgent* actor=(BrzAgent*)context; if(id>=0 && (size_t)id<actor->res_n){ actor->res_inv[id]+=amount; if(actor->res_inv[id]<0) actor->res_inv[id]=0; } }
+static double local_actor_item_get(void* context, int id)
+{ BrzAgent* actor=(BrzAgent*)context; return id>=0 && (size_t)id<actor->item_n ? actor->item_inv[id] : 0; }
+static void local_actor_item_add(void* context, int id, double amount)
+{ BrzAgent* actor=(BrzAgent*)context; if(id>=0 && (size_t)id<actor->item_n){ actor->item_inv[id]+=amount; if(actor->item_inv[id]<0) actor->item_inv[id]=0; } }
+static int local_actor_home_settlement(void* context) { return ((BrzAgent*)context)->home_settlement; }
+static int local_actor_has_target(void* context) { return ((BrzAgent*)context)->has_target; }
+static BrzPos local_actor_target(void* context) { return ((BrzAgent*)context)->target; }
+static void local_actor_set_target(void* context, BrzPos target)
+{ BrzAgent* actor=(BrzAgent*)context; actor->target=target; actor->has_target=1; }
+static void local_actor_clear_target(void* context) { ((BrzAgent*)context)->has_target=0; }
 
 void bronze_actor_port_init(BronzeActorPort* port, void* agent)
 {
     if(!port) return;
     port->context=agent; port->id=local_actor_id; port->position=local_actor_position;
     port->set_position=local_actor_set_position; port->need=local_actor_need;
+    port->need_add=local_actor_need_add;
+    port->resource_get=local_actor_resource_get; port->resource_add=local_actor_resource_add;
+    port->item_get=local_actor_item_get; port->item_add=local_actor_item_add;
+    port->home_settlement=local_actor_home_settlement;
+    port->has_target=local_actor_has_target; port->target=local_actor_target;
+    port->set_target=local_actor_set_target; port->clear_target=local_actor_clear_target;
 }
 
 static int local_settlement_nearest(void* context, BrzPos position)
@@ -123,11 +159,11 @@ void bronze_settlement_port_destroy(BronzeSettlementPort* port)
 
 void bronze_event_emit(const BronzeEventSink* sink, BronzeEventKind kind,
                        uint32_t actor_id, int settlement_id, const char* subject,
-                       double amount, int day)
+                       double amount, BronzeActionResult result, int day)
 {
     if(!sink || !sink->emit) return;
     BronzeEvent event;
     event.kind=kind; event.actor_id=actor_id; event.settlement_id=settlement_id;
-    event.subject=subject; event.amount=amount; event.day=day;
+    event.subject=subject; event.amount=amount; event.result=result; event.day=day;
     sink->emit(sink->context,&event);
 }

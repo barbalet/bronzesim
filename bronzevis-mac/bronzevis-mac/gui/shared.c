@@ -479,9 +479,12 @@ void brz_shared_cycle(unsigned long ticks)
         /* One sim "day" */
         rt.world_port.step_regen(rt.world_port.context);
         brz_settlements_begin_day(rt.setts, rt.sett_n);
-        for(int i=0;i<rt.agent_n;i++)
-            brz_agent_step(&rt.agents[i], &rt.cfg, &rt.world_port, &rt.settlement_port,
-                           &rt.rng, NULL, (int)rt.day);
+        for(int i=0;i<rt.agent_n;i++){
+            BronzeActorPort actor_port;
+            bronze_actor_port_init(&actor_port,&rt.agents[i]);
+            brz_agent_step(&rt.agents[i], &actor_port, &rt.cfg, &rt.world_port,
+                           &rt.settlement_port, &rt.rng, NULL, (int)rt.day);
+        }
 
         rt.day++;
         rt.accum_ms -= STEP_MS;
