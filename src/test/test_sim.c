@@ -274,6 +274,20 @@ static void test_checkpoint_round_trip(void)
     brz_state_destroy(&first); brz_state_destroy(&second); remove("/tmp/brz_state_roundtrip.bin"); free_source(&cfg,path);
 }
 
+static void test_checkpoint_resume_matches_uninterrupted_trace(void)
+{
+    const char* source="kinds { resources { grain } items { } } world { seed 17 sim_map_w 8 sim_map_h 8 } agents { count 1 } settlements { count 1 } actions { action rest 0 0 } vocations { vocation sleeper { task pause { rest } rule always { when true do pause } } }";
+    ParsedConfig cfg; char* path=NULL; BrzSimulationState full, part, resumed; EventTrace a={0},b={0}; BronzeEventSink sa={&a,trace_event},sb={&b,trace_event};
+    memset(&full,0,sizeof(full)); memset(&part,0,sizeof(part)); memset(&resumed,0,sizeof(resumed));
+    TEST_ASSERT(parse_source(source,&cfg,&path)); TEST_EQ_INT(brz_state_init(&full,&cfg),0); TEST_EQ_INT(brz_state_init(&part,&cfg),0);
+    for(int i=0;i<4;i++) TEST_EQ_INT(brz_state_step(&full,&sa),0);
+    for(int i=0;i<2;i++) TEST_EQ_INT(brz_state_step(&part,&sb),0);
+    TEST_EQ_INT(brz_state_save(&part,"/tmp/brz_resume.bin"),0); TEST_EQ_INT(brz_state_load(&resumed,&cfg,"/tmp/brz_resume.bin"),0);
+    for(int i=0;i<2;i++) TEST_EQ_INT(brz_state_step(&resumed,&sb),0);
+    TEST_STREQ(a.text,b.text); TEST_EQ_INT(full.rng.state,resumed.rng.state); TEST_ASSERT(full.world.res[0]==resumed.world.res[0]);
+    brz_state_destroy(&full); brz_state_destroy(&part); brz_state_destroy(&resumed); remove("/tmp/brz_resume.bin"); free_source(&cfg,path);
+}
+
 static void test_bronze_adapter_runs_completed_and_deferred_service_vectors(void)
 {
     BrzAgent recipient;
@@ -315,5 +329,6 @@ void test_sim_run(void)
     test_regeneration_is_capped_and_deterministic();
     test_bronze_event_projects_to_shared_runtime_contract();
     test_checkpoint_round_trip();
+    test_checkpoint_resume_matches_uninterrupted_trace();
     test_bronze_adapter_runs_completed_and_deferred_service_vectors();
 }
