@@ -167,3 +167,14 @@ void bronze_event_emit(const BronzeEventSink* sink, BronzeEventKind kind,
     event.subject=subject; event.amount=amount; event.result=result; event.day=day;
     sink->emit(sink->context,&event);
 }
+
+void bronze_event_to_scenario(const BronzeEvent* bronze, ScenarioTick tick,
+                              double requested_amount, ScenarioEvent* scenario)
+{
+    ScenarioResult result;
+    if(!bronze || !scenario) return;
+    result=(ScenarioResult)bronze->result;
+    scenario_event_init(scenario,tick,bronze->actor_id,SCENARIO_ID_NONE,
+                        bronze->settlement_id>=0 ? (ScenarioPlaceId)bronze->settlement_id : SCENARIO_ID_NONE,
+                        bronze->subject,requested_amount,bronze->amount,result);
+}

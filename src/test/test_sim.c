@@ -241,6 +241,23 @@ static void test_regeneration_is_capped_and_deterministic(void)
     free_source(&config,path);
 }
 
+static void test_bronze_event_projects_to_shared_runtime_contract(void)
+{
+    BronzeEvent bronze;
+    ScenarioEvent expected, actual;
+    memset(&bronze,0,sizeof(bronze));
+    bronze.kind=BRZ_EVENT_TRADED;
+    bronze.actor_id=7;
+    bronze.settlement_id=2;
+    bronze.subject="water_provision";
+    bronze.amount=1.0;
+    bronze.result=BRZ_RESULT_COMPLETED;
+    bronze_event_to_scenario(&bronze,60,1.0,&actual);
+    scenario_event_init(&expected,60,7,SCENARIO_ID_NONE,2,"water_provision",
+                        1.0,1.0,SCENARIO_RESULT_COMPLETED);
+    TEST_ASSERT(scenario_event_equivalent(&actual,&expected));
+}
+
 void test_sim_run(void)
 {
     test_runtime_emits_selection_event();
@@ -248,4 +265,5 @@ void test_sim_run(void)
     test_recipe_consumes_inputs_and_emits_payload();
     test_unavailable_trade_preserves_inventory();
     test_regeneration_is_capped_and_deterministic();
+    test_bronze_event_projects_to_shared_runtime_contract();
 }

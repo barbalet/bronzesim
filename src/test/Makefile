@@ -15,7 +15,8 @@ SRC_C = \
   ../brz_util.c \
   ../brz_vec.c \
   ../brz_world.c \
-  ../brz_port.c
+  ../brz_port.c \
+  ../scenario_runtime.c
 
 TEST_C = \
   test_common.c \

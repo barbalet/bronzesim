@@ -6,6 +6,7 @@
    its generic engine directories. */
 #include "brz_types.h"
 #include "brz_dsl.h"
+#include "scenario_runtime.h"
 #include <stdint.h>
 #include <stddef.h>
 
@@ -89,5 +90,7 @@ struct BronzeSettlementPort {
 void bronze_event_emit(const BronzeEventSink* sink, BronzeEventKind kind,
                        uint32_t actor_id, int settlement_id, const char* subject,
                        double amount, BronzeActionResult result, int day);
+void bronze_event_to_scenario(const BronzeEvent* bronze, ScenarioTick tick,
+                              double requested_amount, ScenarioEvent* scenario);
 
 #endif

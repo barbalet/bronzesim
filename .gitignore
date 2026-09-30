@@ -1,0 +1,4 @@
+# C build outputs
+*.o
+src/bronzesim
+src/test/tests

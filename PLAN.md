@@ -386,3 +386,23 @@ and the Mosul `test-scenario-dsl` adapter fixture passed.  The Mosul portable
 Makefile also built the current host-bridge simulator successfully (with its
 pre-existing compiler warnings).  The two repositories now have a validated
 compiler/adapter seam; Phase 3 may begin.
+
+## Phase 3 status
+
+Started 2026-09-30.  The first shared-runtime pilot slice is now implemented
+in `src/scenario_runtime.{h,c}`.  It defines a deliberately small C99 v1
+contract: stable tick, actor and place identities; a versioned event envelope;
+and `completed`, `unavailable`, `deferred`, and `invalid` result codes.
+`bronze_event_to_scenario()` projects the existing Bronze event into that
+envelope without exposing Bronze's mutable runtime structures.  Mosul's
+scenario adapter constructs the same envelope directly from its validated
+service binding.
+
+The canonical water-provision event (tick 60, provider 7, recipient 8, place
+2, requested and delivered amount 1) is compared with the same shared helper
+from both repositories.  On 2026-09-30 BronzeSim's suite passed 1,755 tests
+and Mosul's `make test-scenario-dsl` fixture passed.
+
+This establishes the shared event/clock/result portion of the runtime pilot;
+it does **not** complete the phase.  Remaining work is the smallest common
+world/actor/place port ABI and canonical completed/deferred state fixtures.
