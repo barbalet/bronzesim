@@ -410,7 +410,6 @@ static void agent_auto_rest(BronzeActorPort* actor, const ParsedConfig* cfg, Bro
     if(actor_at_settlement(actor, settlements->position(settlements->context,si))){
         /* a little recovery every day at home */
         double recovery=cfg->settlement_policy.rest_recovery;
-        if(recovery<=0) recovery=0.04;
         actor->need_add(actor->context,"fatigue",-recovery);
         /* if exhausted, recover more aggressively */
         if(actor->need(actor->context,"fatigue") > 0.85) actor->need_add(actor->context,"fatigue",-0.10);
@@ -537,7 +536,6 @@ void brz_agent_step(BrzAgent* a, BronzeActorPort* actor, const ParsedConfig* cfg
     int si = actor->home_settlement(actor->context);
     if(si>=0 && actor_at_settlement(actor,settlements->position(settlements->context,si))){
         double threshold=cfg->settlement_policy.deposit_threshold;
-        if(threshold<=0) threshold=2;
         for(size_t rid=0;rid<kind_table_count(&cfg->resource_kinds);rid++){
             const ResourceDef* def=brz_resource_find(cfg,kind_table_name(&cfg->resource_kinds,(int)rid));
             if(def && def->nutrition>0 && actor->resource_get(actor->context,(int)rid)>threshold){

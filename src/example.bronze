@@ -104,6 +104,7 @@ recipes {
 }
 
 settlement_policy {
+  food_fallback grain
   deposit_threshold 2
   rest_recovery 0.04
 }

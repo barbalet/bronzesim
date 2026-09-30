@@ -421,5 +421,6 @@ the declared first-choice nutrition policy.
 New parser coverage proves that unknown terrain and gather operands fail before
 the simulation starts. `make test` passed with 1,764 tests on 2026-09-30.
 The remaining Phase 4 work is to replace the free-form rule/`when` expression
-evaluator with a typed condition representation and to move the remaining
-automatic settlement defaults into explicit scenario policy declarations.
+evaluator with a typed condition representation. Settlement default values are
+now initialized once as documented legacy policy defaults, validated, and no
+longer introduced by execution-time fallback branches.

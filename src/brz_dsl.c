@@ -241,6 +241,9 @@ void brz_cfg_init(ParsedConfig* cfg)
     cfg->agent_count = 0;
     cfg->settlement_count = 0;
     cfg->language_version = 1;
+    /* Legacy documents inherit these declared policy defaults. */
+    cfg->settlement_policy.deposit_threshold=2.0;
+    cfg->settlement_policy.rest_recovery=0.04;
     kind_table_init(&cfg->resource_kinds);
     kind_table_init(&cfg->item_kinds);
     brz_vec_init(&cfg->params, sizeof(ParamDef));
@@ -318,6 +321,14 @@ const ResourceDef* brz_resource_find(const ParsedConfig* cfg, const char* name)
     for(size_t i=0;i<cfg->resources.len;i++){
         const ResourceDef* r=(const ResourceDef*)brz_vec_cat(&cfg->resources,i);
         if(r->name && brz_streq(r->name,name)) return r;
+    }
+    if(cfg->settlement_policy.food_fallback &&
+       kind_table_find(&cfg->resource_kinds,cfg->settlement_policy.food_fallback)<0){
+        fprintf(errors,"ValidationError: settlement food_fallback '%s' is not a declared resource\n",
+                cfg->settlement_policy.food_fallback); ok=0;
+    }
+    if(cfg->settlement_policy.deposit_threshold<0 || cfg->settlement_policy.rest_recovery<0){
+        fprintf(errors,"ValidationError: settlement policy values must be non-negative\n"); ok=0;
     }
     return NULL;
 }
