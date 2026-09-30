@@ -341,6 +341,27 @@ BronzeSim only; no Mosul runtime or ApeSDK state is shared.
 5. Map versioned Bronze state/events through an adapter; do not change existing
    ApeSDK save compatibility until the extension's own migrations are proven.
 
+**Implementation status (2026-09-30):** the optional `apesdk/bronze/`
+extension now contains a headless, Make-independent harness. It links against
+the real ApeSDK land clock and proves the 1,440-cycle Bronze day conversion,
+`ScenarioWorldPort` clock view, a Bronze-owned resource/need sidecar, and a
+named fixed-place `ScenarioPlacePort`. It also reads a real initialized
+`simulated_being` from `sim_group()` through `ScenarioActorPort`; the stable
+scenario actor ID and economic state remain external to that core type.
+
+The first farmer/fisher/smith sidecar slice is now executable: `move`,
+`gather`, `craft`, `deposit`, `eat`, and `rest` mutate only Bronze-owned
+sidecars and emit versioned `ScenarioEvent` records. Its harness checks the
+grain/fish food path, copper/tin/charcoal recipe inputs, settlement deposit,
+need recovery, action/result identifiers, and fixed clock/actor trace fields.
+The canonical ApeSDK `test.sh` invokes this harness when the extension is
+present. The harness uses a local `draw_error` stub solely to avoid a
+graphical/Xcode dependency. The harness runs the slice in two fresh ApeSDK
+initializations and compares every event field-for-field, providing the first
+cross-run deterministic trace gate. Remaining Phase 6 work is to replace the
+sidecar-only action dispatcher with the compiled Bronze DSL scenario before
+expanding vocations.
+
 **Gate:** the vertical slice has a local and an ApeSDK-backed run with stable,
 auditable event traces.  Only then expand vocation coverage.
 
