@@ -322,14 +322,6 @@ const ResourceDef* brz_resource_find(const ParsedConfig* cfg, const char* name)
         const ResourceDef* r=(const ResourceDef*)brz_vec_cat(&cfg->resources,i);
         if(r->name && brz_streq(r->name,name)) return r;
     }
-    if(cfg->settlement_policy.food_fallback &&
-       kind_table_find(&cfg->resource_kinds,cfg->settlement_policy.food_fallback)<0){
-        fprintf(errors,"ValidationError: settlement food_fallback '%s' is not a declared resource\n",
-                cfg->settlement_policy.food_fallback); ok=0;
-    }
-    if(cfg->settlement_policy.deposit_threshold<0 || cfg->settlement_policy.rest_recovery<0){
-        fprintf(errors,"ValidationError: settlement policy values must be non-negative\n"); ok=0;
-    }
     return NULL;
 }
 
@@ -422,6 +414,14 @@ bool brz_cfg_validate(const ParsedConfig* cfg, FILE* errors)
         if(r->habitat && !brz_terrain_query(r->habitat)){
             fprintf(errors,"ValidationError:%d: resource '%s' has unknown terrain query '%s'\n",r->line,r->name,r->habitat); ok=0;
         }
+    }
+    if(cfg->settlement_policy.food_fallback &&
+       kind_table_find(&cfg->resource_kinds,cfg->settlement_policy.food_fallback)<0){
+        fprintf(errors,"ValidationError: settlement food_fallback '%s' is not a declared resource\n",
+                cfg->settlement_policy.food_fallback); ok=0;
+    }
+    if(cfg->settlement_policy.deposit_threshold<0 || cfg->settlement_policy.rest_recovery<0){
+        fprintf(errors,"ValidationError: settlement policy values must be non-negative\n"); ok=0;
     }
     for(size_t i=0;i<cfg->recipes.len;i++){
         const RecipeDef* r=(const RecipeDef*)brz_vec_cat(&cfg->recipes,i);
