@@ -297,6 +297,32 @@ BronzeVis adapter.
 inspectable events, and clear incompatible-save diagnostics—without sharing
 Mosul's scenario data.
 
+#### Phase 5 implementation sequence
+
+1. **Extract `BrzSimulationState` before serializing anything.**  It owns the
+   mutable world, settlements, agents, local ports, RNG state, current day, and
+   immutable content identity.  Provide `init`, one-day `step`, `destroy`, and
+   read-only snapshot access.  Keep `brz_run_with_events()` as a compatibility
+   wrapper over this lifecycle.
+2. **Add `brz_state.{h,c}` as a versioned binary checkpoint boundary.**  Its
+   format begins with magic, schema version, and content fingerprint, then
+   records dimensions/counts, day/RNG, world resource cells, settlement stores,
+   and agent identity, vocation reference, position/target, needs, and
+   inventories.  Loading must reject incompatible scenario content with a
+   precise diagnostic; it must never silently reinterpret a save.
+3. **Prove interrupted replay.**  Run a fixed scenario uninterrupted to day N,
+   then run it to day K, save, load into a fresh state, and resume to day N.
+   Require byte-identical serialized final state and canonical event trace.
+4. **Add observation sinks only after state is stable.**  Normal narration and
+   debug/JSON output consume immutable `ScenarioEvent` values and read-only
+   state snapshots.  BronzeVis follows in a separate sub-step after that
+   snapshot surface is stable; it must not access mutable simulation structs.
+
+**Phase 5 sub-gates:** (a) a checkpoint round-trip preserves every serialized
+field exactly; (b) save/resume produces the same final checkpoint and event
+trace as an uninterrupted run.  Phase 5 implementation begins with step 1 in
+BronzeSim only; no Mosul runtime or ApeSDK state is shared.
+
 ### Phase 6 — add ApeSDK adapters only after the above gates
 
 **Location:** an optional Bronze extension/adapter, never ApeSDK core.
