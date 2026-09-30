@@ -240,7 +240,24 @@ runs; an event observer cannot alter simulation state.
 typed action/event plans; validation rejects an invalid profession, place,
 service input, map reference, or state variable with a source location.
 
-### Phase 3 — compile and validate scenario semantics
+### Phase 3 — shared runtime-contract pilot with Mosul
+
+**Both repos:** new `scenario-runtime` header/test package; no ApeSDK change.
+
+1. Agree on the smallest versioned event envelope, clock, result codes, and
+   port ABI described above.  Write C99 compile tests from both repositories.
+2. Write one canonical fixture for an actor travelling to a place, requesting a
+   resource/service, receiving either `completed` or `deferred`, and emitting
+   events.  Run it against a Bronze local adapter and Mosul local adapter.
+3. Share test vectors and schema documentation, not concrete actor structs.
+4. Choose ownership only after the pilot: a separate small repository is
+   preferable; an ApeSDK `scenario/` extension is acceptable only if it stays
+   optional and no core module includes it.
+
+**Gate:** both adapters compile against the same header and produce equivalent
+canonical event/state fixtures for the shared test case.
+
+### Phase 4 — compile and validate scenario semantics
 
 **BronzeSim files:** `src/brz_dsl.{h,c}`, `src/brz_parser.c`, `src/brz_agent.c`,
 `src/example.bronze`, DSL/manual/tests.
@@ -260,23 +277,6 @@ service input, map reference, or state variable with a source location.
 
 **Gate:** a deliberately invalid scenario reports source location and has no
 side effects; `example.bronze` recreates Phase 0 results.
-
-### Phase 4 — shared runtime-contract pilot with Mosul
-
-**Both repos:** new `scenario-runtime` header/test package; no ApeSDK change.
-
-1. Agree on the smallest versioned event envelope, clock, result codes, and
-   port ABI described above.  Write C99 compile tests from both repositories.
-2. Write one canonical fixture for an actor travelling to a place, requesting a
-   resource/service, receiving either `completed` or `deferred`, and emitting
-   events.  Run it against a Bronze local adapter and Mosul local adapter.
-3. Share test vectors and schema documentation, not concrete actor structs.
-4. Choose ownership only after the pilot: a separate small repository is
-   preferable; an ApeSDK `scenario/` extension is acceptable only if it stays
-   optional and no core module includes it.
-
-**Gate:** both adapters compile against the same header and produce equivalent
-canonical event/state fixtures for the shared test case.
 
 ### Phase 5 — checkpoint and observability alignment
 
@@ -389,20 +389,20 @@ compiler/adapter seam; Phase 3 may begin.
 
 ## Phase 3 status
 
-Started 2026-09-30.  The first shared-runtime pilot slice is now implemented
-in `src/scenario_runtime.{h,c}`.  It defines a deliberately small C99 v1
-contract: stable tick, actor and place identities; a versioned event envelope;
-and `completed`, `unavailable`, `deferred`, and `invalid` result codes.
+Completed 2026-09-30.  The shared C99 contract now lives in the source-only
+`scenario-runtime/` package.  It defines stable tick, actor and place
+identities; a versioned event envelope; read-only opaque world, actor, and
+place views; and `completed`, `unavailable`, `deferred`, and `invalid` result
+codes.
 `bronze_event_to_scenario()` projects the existing Bronze event into that
 envelope without exposing Bronze's mutable runtime structures.  Mosul's
 scenario adapter constructs the same envelope directly from its validated
 service binding.
 
-The canonical water-provision event (tick 60, provider 7, recipient 8, place
-2, requested and delivered amount 1) is compared with the same shared helper
-from both repositories.  On 2026-09-30 BronzeSim's suite passed 1,755 tests
-and Mosul's `make test-scenario-dsl` fixture passed.
-
-This establishes the shared event/clock/result portion of the runtime pilot;
-it does **not** complete the phase.  Remaining work is the smallest common
-world/actor/place port ABI and canonical completed/deferred state fixtures.
+The canonical fixture reads local adapter views, emits recipient travel at tick
+60 and water provision at tick 61 (provider 7, recipient 8, place 2), then
+checks the arrived place/position and delivered amount.  It runs once as
+`completed` and once as `deferred`; both local adapters compile the same
+header and compare the same completed state vector.  On 2026-09-30 BronzeSim's
+suite passed 1,760 tests and Mosul's `make test-scenario-dsl` fixture passed.
+The vector and ownership boundary are documented in `scenario-runtime/README.md`.

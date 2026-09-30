@@ -258,6 +258,38 @@ static void test_bronze_event_projects_to_shared_runtime_contract(void)
     TEST_ASSERT(scenario_event_equivalent(&actual,&expected));
 }
 
+static void test_bronze_adapter_runs_completed_and_deferred_service_vectors(void)
+{
+    BrzAgent recipient;
+    BrzSettlement settlement;
+    BronzeScenarioClockView clock;
+    BronzeScenarioPlaceView place_view;
+    ScenarioWorldPort world;
+    ScenarioActorPort actor;
+    ScenarioPlacePort place;
+    ScenarioServiceFixture completed, deferred, expected;
+    memset(&recipient,0,sizeof(recipient)); memset(&settlement,0,sizeof(settlement));
+    memset(&world,0,sizeof(world)); memset(&actor,0,sizeof(actor)); memset(&place,0,sizeof(place));
+    recipient.id=8; recipient.pos=(BrzPos){12,9};
+    settlement.pos=(BrzPos){12,9};
+    bronze_scenario_clock_view_init(&clock,60,&world);
+    bronze_scenario_actor_view_init(&recipient,&actor);
+    bronze_scenario_place_view_init(&settlement,2,&place_view,&place);
+    TEST_ASSERT(scenario_service_fixture_run(&world,&actor,&place,7,"water_provision",1.0,
+                                             SCENARIO_RESULT_COMPLETED,&completed));
+    TEST_ASSERT(scenario_service_fixture_run(&world,&actor,&place,7,"water_provision",1.0,
+                                             SCENARIO_RESULT_DEFERRED,&deferred));
+    scenario_event_init(&expected.events[0],60,8,SCENARIO_ID_NONE,2,"travel",1.0,1.0,
+                        SCENARIO_RESULT_COMPLETED);
+    scenario_event_init(&expected.events[1],61,7,8,2,"water_provision",1.0,1.0,
+                        SCENARIO_RESULT_COMPLETED);
+    expected.recipient_position=(ScenarioPosition){12,9};
+    expected.recipient_place_id=2; expected.recipient_arrived=1; expected.delivered_amount=1.0;
+    TEST_ASSERT(scenario_service_fixture_equivalent(&completed,&expected));
+    TEST_EQ_INT(deferred.events[1].result,SCENARIO_RESULT_DEFERRED);
+    TEST_ASSERT(deferred.delivered_amount==0.0);
+}
+
 void test_sim_run(void)
 {
     test_runtime_emits_selection_event();
@@ -266,4 +298,5 @@ void test_sim_run(void)
     test_unavailable_trade_preserves_inventory();
     test_regeneration_is_capped_and_deterministic();
     test_bronze_event_projects_to_shared_runtime_contract();
+    test_bronze_adapter_runs_completed_and_deferred_service_vectors();
 }

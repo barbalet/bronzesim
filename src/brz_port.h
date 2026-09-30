@@ -6,7 +6,7 @@
    its generic engine directories. */
 #include "brz_types.h"
 #include "brz_dsl.h"
-#include "scenario_runtime.h"
+#include <scenario_runtime.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -38,6 +38,10 @@ typedef struct {
 
 typedef void (*BronzeEventFn)(void* context, const BronzeEvent* event);
 typedef struct { void* context; BronzeEventFn emit; } BronzeEventSink;
+
+/* Read-only views used by the shared scenario-runtime pilot. */
+typedef struct { ScenarioTick tick; } BronzeScenarioClockView;
+typedef struct { const void* settlement; ScenarioPlaceId id; } BronzeScenarioPlaceView;
 
 void bronze_world_port_init(BronzeWorldPort* port, void* world, size_t resource_count);
 void bronze_actor_port_init(BronzeActorPort* port, void* agent);
@@ -92,5 +96,10 @@ void bronze_event_emit(const BronzeEventSink* sink, BronzeEventKind kind,
                        double amount, BronzeActionResult result, int day);
 void bronze_event_to_scenario(const BronzeEvent* bronze, ScenarioTick tick,
                               double requested_amount, ScenarioEvent* scenario);
+void bronze_scenario_clock_view_init(BronzeScenarioClockView* view, ScenarioTick tick,
+                                    ScenarioWorldPort* port);
+void bronze_scenario_actor_view_init(const void* agent, ScenarioActorPort* port);
+void bronze_scenario_place_view_init(const void* settlement, ScenarioPlaceId id,
+                                    BronzeScenarioPlaceView* view, ScenarioPlacePort* port);
 
 #endif

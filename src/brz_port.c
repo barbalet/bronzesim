@@ -178,3 +178,45 @@ void bronze_event_to_scenario(const BronzeEvent* bronze, ScenarioTick tick,
                         bronze->settlement_id>=0 ? (ScenarioPlaceId)bronze->settlement_id : SCENARIO_ID_NONE,
                         bronze->subject,requested_amount,bronze->amount,result);
 }
+
+static ScenarioTick scenario_clock_tick(const void* context)
+{ return ((const BronzeScenarioClockView*)context)->tick; }
+static ScenarioActorId scenario_actor_id(const void* context)
+{ return ((const BrzAgent*)context)->id; }
+static ScenarioPosition scenario_actor_position(const void* context)
+{
+    BrzPos position=((const BrzAgent*)context)->pos;
+    return (ScenarioPosition){position.x,position.y};
+}
+static ScenarioPlaceId scenario_place_id(const void* context)
+{ return ((const BronzeScenarioPlaceView*)context)->id; }
+static ScenarioPosition scenario_place_position(const void* context)
+{
+    const BrzSettlement* settlement=(const BrzSettlement*)((const BronzeScenarioPlaceView*)context)->settlement;
+    return (ScenarioPosition){settlement->pos.x,settlement->pos.y};
+}
+static const char* scenario_place_name(const void* context)
+{ (void)context; return "settlement"; }
+
+void bronze_scenario_clock_view_init(BronzeScenarioClockView* view, ScenarioTick tick,
+                                    ScenarioWorldPort* port)
+{
+    if(!view || !port) return;
+    view->tick=tick;
+    port->context=view; port->tick=scenario_clock_tick;
+}
+
+void bronze_scenario_actor_view_init(const void* agent, ScenarioActorPort* port)
+{
+    if(!port) return;
+    port->context=agent; port->id=scenario_actor_id; port->position=scenario_actor_position;
+}
+
+void bronze_scenario_place_view_init(const void* settlement, ScenarioPlaceId id,
+                                    BronzeScenarioPlaceView* view, ScenarioPlacePort* port)
+{
+    if(!view || !port) return;
+    view->settlement=settlement; view->id=id;
+    port->context=view; port->id=scenario_place_id;
+    port->position=scenario_place_position; port->name=scenario_place_name;
+}

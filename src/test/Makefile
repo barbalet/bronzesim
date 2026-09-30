@@ -1,7 +1,7 @@
 
 CC ?= cc
 CFLAGS ?= -std=c99 -Wall -Wextra -O0 -g
-INCLUDES = -I.. -I.
+INCLUDES = -I.. -I. -I../../scenario-runtime/include
 
 # Build all src/*.c except main.c
 SRC_C = \
@@ -16,7 +16,7 @@ SRC_C = \
   ../brz_vec.c \
   ../brz_world.c \
   ../brz_port.c \
-  ../scenario_runtime.c
+  ../../scenario-runtime/src/scenario_runtime.c
 
 TEST_C = \
   test_common.c \
