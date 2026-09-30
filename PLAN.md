@@ -364,9 +364,11 @@ content drives the farmer, fisher, and smith `move_to`, `gather`, `craft`,
 `deposit`, `eat`, and `rest` task operations through a thin ApeSDK bridge.
 `deposit` and `eat` were promoted to compiled Bronze DSL actions in both
 BronzeSim and the extension, so the vertical slice no longer relies on
-implicit policy dispatch. Remaining Phase 6 work is versioned Bronze sidecar
-state/event persistence through the adapter, without changing ApeSDK's
-existing save format, before expanding vocations.
+implicit policy dispatch. The adapter now persists a versioned Bronze-only
+sidecar snapshot and fixed-format scenario-event log; its harness verifies
+write/read/apply state restoration and event equivalence, without changing
+ApeSDK's existing save format. **Phase 6 is complete:** the next work is
+expanding vocation coverage while preserving these deterministic gates.
 
 **Gate:** the vertical slice has a local and an ApeSDK-backed run with stable,
 auditable event traces.  Only then expand vocation coverage.
