@@ -303,6 +303,34 @@ static void execute_compiled_action(BronzeActorPort* actor, const ParsedConfig* 
         bronze_event_emit(events,BRZ_EVENT_TRADED,actor->id(actor->context),si,arg0,completed,
                           completed>0 ? BRZ_RESULT_COMPLETED : BRZ_RESULT_UNAVAILABLE,day);
     }
+    else if(op->action_code==BRZ_ACTION_DEPOSIT)
+    {
+        int rid=op->arg0_resource_id;
+        int si=actor->home_settlement(actor->context);
+        double moved=0;
+        if(rid>=0 && si>=0 && actor_at_settlement(actor,settlements->position(settlements->context,si))){
+            moved=actor->resource_get(actor->context,rid);
+            if(moved>n) moved=n;
+            actor->resource_add(actor->context,rid,-moved);
+            settlements->resource_add(settlements->context,si,rid,moved);
+        }
+        bronze_event_emit(events,BRZ_EVENT_DEPOSITED,actor->id(actor->context),si,arg0,moved,
+                          moved==n ? BRZ_RESULT_COMPLETED : BRZ_RESULT_UNAVAILABLE,day);
+    }
+    else if(op->action_code==BRZ_ACTION_EAT)
+    {
+        int rid=op->arg0_resource_id;
+        double eaten=0;
+        const ResourceDef* resource=brz_resource_find(cfg,arg0);
+        if(rid>=0 && resource && resource->nutrition>0){
+            eaten=actor->resource_get(actor->context,rid);
+            if(eaten>n) eaten=n;
+            actor->resource_add(actor->context,rid,-eaten);
+            actor->need_add(actor->context,"hunger",-resource->nutrition*eaten);
+        }
+        bronze_event_emit(events,BRZ_EVENT_ATE,actor->id(actor->context),actor->home_settlement(actor->context),arg0,eaten,
+                          eaten==n ? BRZ_RESULT_COMPLETED : BRZ_RESULT_UNAVAILABLE,day);
+    }
     else if(op->action_code==BRZ_ACTION_REST)
     {
         actor->need_add(actor->context,"fatigue",-0.1);
@@ -332,6 +360,7 @@ static void execute_compiled_action(BronzeActorPort* actor, const ParsedConfig* 
 static const CompiledActionRegistration compiled_actions[] = {
     {BRZ_ACTION_GATHER, execute_compiled_action}, {BRZ_ACTION_CRAFT, execute_compiled_action},
     {BRZ_ACTION_TRADE, execute_compiled_action}, {BRZ_ACTION_REST, execute_compiled_action},
+    {BRZ_ACTION_DEPOSIT, execute_compiled_action}, {BRZ_ACTION_EAT, execute_compiled_action},
     {BRZ_ACTION_MOVE_TO, execute_compiled_action}, {BRZ_ACTION_ROAM, execute_compiled_action},
     {BRZ_ACTION_WANDER, execute_compiled_action}
 };

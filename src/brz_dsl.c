@@ -354,6 +354,8 @@ int brz_action_code(const char* name)
     if(brz_streq(name,"move_to")) return BRZ_ACTION_MOVE_TO;
     if(brz_streq(name,"roam")) return BRZ_ACTION_ROAM;
     if(brz_streq(name,"wander")) return BRZ_ACTION_WANDER;
+    if(brz_streq(name,"deposit")) return BRZ_ACTION_DEPOSIT;
+    if(brz_streq(name,"eat")) return BRZ_ACTION_EAT;
     return BRZ_ACTION_INVALID;
 }
 
@@ -536,8 +538,8 @@ static int compile_stmts(ParsedConfig* cfg, BrzVec* statements, const char* voca
         if(op->action_code==BRZ_ACTION_INVALID){
             fprintf(errors,"ValidationError:%d: vocation '%s' uses unsupported action '%s'\n",st->line,vocation,op->op); ok=0; continue;
         }
-        if(op->action_code==BRZ_ACTION_GATHER){
-            if(op->arg0_resource_id<0){ fprintf(errors,"ValidationError:%d: gather requires a declared resource '%s'\n",st->line,op->a0); ok=0; }
+        if(op->action_code==BRZ_ACTION_GATHER || op->action_code==BRZ_ACTION_DEPOSIT || op->action_code==BRZ_ACTION_EAT){
+            if(op->arg0_resource_id<0){ fprintf(errors,"ValidationError:%d: action '%s' requires a declared resource '%s'\n",st->line,op->op,op->a0); ok=0; }
         } else if(op->action_code==BRZ_ACTION_CRAFT){
             for(size_t ri=0;ri<cfg->recipes.len;ri++){
                 RecipeDef* recipe=(RecipeDef*)brz_vec_at(&cfg->recipes,ri);

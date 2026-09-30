@@ -358,9 +358,15 @@ The canonical ApeSDK `test.sh` invokes this harness when the extension is
 present. The harness uses a local `draw_error` stub solely to avoid a
 graphical/Xcode dependency. The harness runs the slice in two fresh ApeSDK
 initializations and compares every event field-for-field, providing the first
-cross-run deterministic trace gate. Remaining Phase 6 work is to replace the
-sidecar-only action dispatcher with the compiled Bronze DSL scenario before
-expanding vocations.
+cross-run deterministic trace gate. The extension now carries the Bronze DSL
+parser/compiler unchanged in `apesdk/bronze/dsl/`; its `vertical_slice.bronze`
+content drives the farmer, fisher, and smith `move_to`, `gather`, `craft`,
+`deposit`, `eat`, and `rest` task operations through a thin ApeSDK bridge.
+`deposit` and `eat` were promoted to compiled Bronze DSL actions in both
+BronzeSim and the extension, so the vertical slice no longer relies on
+implicit policy dispatch. Remaining Phase 6 work is versioned Bronze sidecar
+state/event persistence through the adapter, without changing ApeSDK's
+existing save format, before expanding vocations.
 
 **Gate:** the vertical slice has a local and an ApeSDK-backed run with stable,
 auditable event traces.  Only then expand vocation coverage.
