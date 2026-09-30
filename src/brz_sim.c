@@ -5,6 +5,7 @@
 #include "brz_world.h"
 #include "brz_settlement.h"
 #include "brz_agent.h"
+#include "brz_state.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -236,108 +237,16 @@ static void print_day_summary(int day, const ParsedConfig* cfg,
 
 int brz_run_with_events(const ParsedConfig* cfg, const BronzeEventSink* events)
 {
-    if(!cfg) return 1;
-
-    const size_t res_n  = kind_table_count(&cfg->resource_kinds);
-    const size_t item_n = kind_table_count(&cfg->item_kinds);
-
     int days          = cfg_get_int(cfg, "sim_days", 365);
     int report_every  = cfg_get_int(cfg, "report_every", 30);
-    int snapshot_every= cfg_get_int(cfg, "snapshot_every", 0);
-    int map_every     = cfg_get_int(cfg, "map_every", 0);
-
-    int map_w = cfg_get_int(cfg, "sim_map_w", 80);
-    int map_h = cfg_get_int(cfg, "sim_map_h", 40);
-    (void)cfg_get_str(cfg, "output_dir", "");
-
-    int agent_n = (cfg->agent_count > 0) ? cfg->agent_count : (int)cfg->vocations.len;
-    if(agent_n <= 0){ fprintf(stderr, "No agents (agents.count or vocations)\n"); return 1; }
-    if(cfg->vocations.len == 0){ fprintf(stderr, "No vocations\n"); return 1; }
-
-    int sett_n = (cfg->settlement_count > 0) ? cfg->settlement_count : 1;
-
-    BrzWorld world;
-    if(brz_world_init(&world, cfg, map_w, map_h, res_n) != 0){
-        fprintf(stderr, "World init failed\n");
-        return 1;
-    }
-    BronzeWorldPort world_port;
-    bronze_world_port_init(&world_port,&world,res_n);
-    if(!world_port.context){ brz_world_free(&world); return 1; }
-
-    BrzSettlement* setts = NULL;
-    if(brz_settlements_alloc(&setts, sett_n, res_n, item_n) != 0){
-        fprintf(stderr, "Settlement alloc failed\n");
-        bronze_world_port_destroy(&world_port);
-        brz_world_free(&world);
-        return 1;
-    }
-    brz_settlements_place(setts, sett_n, map_w, map_h, cfg->seed ? cfg->seed : 0xC0FFEEu);
-    brz_world_stamp_fields_around_settlements(&world, setts, sett_n, 8);
-    BronzeSettlementPort settlement_port;
-    bronze_settlement_port_init(&settlement_port,setts,sett_n,cfg);
-    if(!settlement_port.context){
-        brz_settlements_free(setts,sett_n);
-        bronze_world_port_destroy(&world_port);
-        brz_world_free(&world);
-        return 1;
-    }
-
-    BrzAgent* agents = NULL;
-    if(brz_agents_alloc_and_spawn(&agents, agent_n, cfg, setts, sett_n, res_n, item_n,
-                                  cfg->seed ? cfg->seed : 0xC0FFEEu) != 0){
-        fprintf(stderr, "Agent alloc failed\n");
-        bronze_settlement_port_destroy(&settlement_port);
-        brz_settlements_free(setts, sett_n);
-        bronze_world_port_destroy(&world_port);
-        brz_world_free(&world);
-        return 1;
-    }
-
-    /* simple population count */
-    for(int si=0; si<sett_n; si++) setts[si].population = 0;
-    for(int ai=0; ai<agent_n; ai++){
-        int h = agents[ai].home_settlement;
-        if(h>=0 && h<sett_n) setts[h].population++;
-    }
-
-    BrzRng rng;
-    brz_rng_seed(&rng, cfg->seed ? cfg->seed : 0xC0FFEEu);
-
-    for(int day=1; day<=days; day++)
-    {
-        world_port.step_regen(world_port.context);
-        brz_settlements_begin_day(setts, sett_n);
-
-        for(int i=0;i<agent_n;i++){
-            BronzeActorPort actor_port;
-            bronze_actor_port_init(&actor_port,&agents[i]);
-            brz_agent_step(&agents[i], &actor_port, cfg, &world_port, &settlement_port, &rng, events, day);
-        }
-
+    BrzSimulationState state;
+    if(brz_state_init(&state,cfg)!=0) return 1;
+    for(int day=1;day<=days;day++){
+        if(brz_state_step(&state,events)!=0){ brz_state_destroy(&state); return 1; }
         if(day==1 || (report_every>0 && day%report_every==0) || day==days)
-            print_day_summary(day, cfg, setts, sett_n, agents, agent_n);
-
-        if(snapshot_every > 0 && (day % snapshot_every)==0){
-            char fn[128];
-            snprintf(fn, sizeof(fn), "snapshot_day%05d.json", day);
-            write_snapshot_json(cfg, &world, setts, sett_n, agents, agent_n, day, fn);
-        }
-
-        if(map_every > 0 && (day % map_every)==0){
-            char fn[128];
-            snprintf(fn, sizeof(fn), "map_day%05d.txt", day);
-            dump_ascii_map(cfg, &world, setts, sett_n, agents, agent_n, day, fn, map_w, map_h);
-        }
+            print_day_summary(day,cfg,state.settlements,state.settlement_count,state.agents,state.agent_count);
     }
-
-    brz_agents_free(agents, agent_n);
-    bronze_settlement_port_destroy(&settlement_port);
-    brz_settlements_free(setts, sett_n);
-    bronze_world_port_destroy(&world_port);
-    brz_world_free(&world);
-
-    return 0;
+    brz_state_destroy(&state); return 0;
 }
 
 int brz_run(const ParsedConfig* cfg)
