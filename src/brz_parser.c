@@ -1160,7 +1160,7 @@ bool brz_parse_file(const char* path, ParsedConfig* out_cfg)
         }
     }
 
-    if(!brz_cfg_validate(out_cfg, stderr)){ free(src); free_lexer(&lx); return false; }
+    if(!brz_cfg_validate(out_cfg, stderr) || !brz_cfg_compile(out_cfg, stderr)){ free(src); free_lexer(&lx); return false; }
     free(src);
     free_lexer(&lx);
     return true;

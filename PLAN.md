@@ -406,3 +406,20 @@ checks the arrived place/position and delivered amount.  It runs once as
 header and compare the same completed state vector.  On 2026-09-30 BronzeSim's
 suite passed 1,760 tests and Mosul's `make test-scenario-dsl` fixture passed.
 The vector and ownership boundary are documented in `scenario-runtime/README.md`.
+
+## Phase 4 status
+
+Started 2026-09-30.  Parsing now compiles declared action names to stable
+`BrzActionCode` values; resolves resource, item, recipe, and terrain-query
+operands to typed ids; and rejects an unsupported action, unknown terrain
+query, or undeclared action operand with the statement's source line. Recipe
+inputs and outputs are likewise resolved before execution. The runtime routes
+compiled action codes through a registered handler table and no longer falls
+back from an unknown terrain name to forest. `food_fallback` is now honored as
+the declared first-choice nutrition policy.
+
+New parser coverage proves that unknown terrain and gather operands fail before
+the simulation starts. `make test` passed with 1,764 tests on 2026-09-30.
+The remaining Phase 4 work is to replace the free-form rule/`when` expression
+evaluator with a typed condition representation and to move the remaining
+automatic settlement defaults into explicit scenario policy declarations.

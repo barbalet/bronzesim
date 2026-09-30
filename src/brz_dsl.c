@@ -342,6 +342,30 @@ const ActionDef* brz_action_find(const ParsedConfig* cfg, const char* name)
     return NULL;
 }
 
+int brz_action_code(const char* name)
+{
+    if(brz_streq(name,"gather")) return BRZ_ACTION_GATHER;
+    if(brz_streq(name,"craft")) return BRZ_ACTION_CRAFT;
+    if(brz_streq(name,"trade")) return BRZ_ACTION_TRADE;
+    if(brz_streq(name,"rest")) return BRZ_ACTION_REST;
+    if(brz_streq(name,"move_to")) return BRZ_ACTION_MOVE_TO;
+    if(brz_streq(name,"roam")) return BRZ_ACTION_ROAM;
+    if(brz_streq(name,"wander")) return BRZ_ACTION_WANDER;
+    return BRZ_ACTION_INVALID;
+}
+
+uint16_t brz_terrain_query(const char* name)
+{
+    if(brz_streq(name,"coast")) return 1u;
+    if(brz_streq(name,"field")) return 2u;
+    if(brz_streq(name,"forest")) return 4u;
+    if(brz_streq(name,"claypit")) return 8u;
+    if(brz_streq(name,"mine_copper")) return 16u;
+    if(brz_streq(name,"mine_tin")) return 32u;
+    if(brz_streq(name,"fire")) return 64u;
+    return 0;
+}
+
 static int named_exists(const BrzVec* values, size_t name_offset, const char* name)
 {
     if(!name) return 0;
@@ -383,6 +407,9 @@ bool brz_cfg_validate(const ParsedConfig* cfg, FILE* errors)
         const ResourceDef* r=(const ResourceDef*)brz_vec_cat(&cfg->resources,i);
         if(kind_table_find(&cfg->resource_kinds,r->name)<0){
             fprintf(errors,"ValidationError:%d: resource '%s' is not declared in kinds.resources\n",r->line,r->name); ok=0;
+        }
+        if(r->habitat && !brz_terrain_query(r->habitat)){
+            fprintf(errors,"ValidationError:%d: resource '%s' has unknown terrain query '%s'\n",r->line,r->name,r->habitat); ok=0;
         }
     }
     for(size_t i=0;i<cfg->recipes.len;i++){
@@ -445,4 +472,77 @@ bool brz_cfg_validate(const ParsedConfig* cfg, FILE* errors)
         }
     }
     return ok!=0;
+}
+
+static int compile_stmts(ParsedConfig* cfg, BrzVec* statements, const char* vocation, FILE* errors)
+{
+    int ok=1;
+    for(size_t i=0;i<statements->len;i++){
+        StmtDef* st=(StmtDef*)brz_vec_at(statements,i);
+        if(st->kind==ST_CHANCE){ if(!compile_stmts(cfg,&st->as.chance.body,vocation,errors)) ok=0; continue; }
+        if(st->kind==ST_WHEN){ if(!compile_stmts(cfg,&st->as.when_stmt.body,vocation,errors)) ok=0; continue; }
+        OpDef* op=&st->as.op;
+        op->action_code=brz_action_code(op->op);
+        op->arg0_resource_id=kind_table_find(&cfg->resource_kinds,op->a0);
+        op->arg1_resource_id=kind_table_find(&cfg->resource_kinds,op->a1);
+        op->arg0_item_id=kind_table_find(&cfg->item_kinds,op->a0);
+        op->arg1_item_id=kind_table_find(&cfg->item_kinds,op->a1);
+        op->terrain_query=0;
+        op->recipe_index=-1;
+        if(op->action_code==BRZ_ACTION_INVALID){
+            fprintf(errors,"ValidationError:%d: vocation '%s' uses unsupported action '%s'\n",st->line,vocation,op->op); ok=0; continue;
+        }
+        if(op->action_code==BRZ_ACTION_GATHER){
+            if(op->arg0_resource_id<0){ fprintf(errors,"ValidationError:%d: gather requires a declared resource '%s'\n",st->line,op->a0); ok=0; }
+        } else if(op->action_code==BRZ_ACTION_CRAFT){
+            for(size_t ri=0;ri<cfg->recipes.len;ri++){
+                RecipeDef* recipe=(RecipeDef*)brz_vec_at(&cfg->recipes,ri);
+                if(brz_streq(recipe->name,op->a0)){ op->recipe_index=(int)ri; break; }
+            }
+            if(op->recipe_index<0 && op->arg0_item_id<0){ fprintf(errors,"ValidationError:%d: craft requires a declared recipe or item '%s'\n",st->line,op->a0); ok=0; }
+        } else if(op->action_code==BRZ_ACTION_TRADE){
+            if((op->arg0_resource_id<0 && op->arg0_item_id<0) || (op->arg1_resource_id<0 && op->arg1_item_id<0)){
+                fprintf(errors,"ValidationError:%d: trade requires declared give and want kinds\n",st->line); ok=0;
+            }
+        } else if(op->action_code==BRZ_ACTION_MOVE_TO || op->action_code==BRZ_ACTION_ROAM || op->action_code==BRZ_ACTION_WANDER){
+            op->terrain_query=brz_terrain_query(op->a0);
+            if(!op->terrain_query){ fprintf(errors,"ValidationError:%d: action '%s' has unknown terrain query '%s'\n",st->line,op->op,op->a0); ok=0; }
+        }
+    }
+    return ok;
+}
+
+bool brz_cfg_compile(ParsedConfig* cfg, FILE* errors)
+{
+    int ok=1;
+    if(!cfg) return false;
+    if(!errors) errors=stderr;
+    for(size_t i=0;i<cfg->actions.len;i++){
+        ActionDef* action=(ActionDef*)brz_vec_at(&cfg->actions,i);
+        action->code=brz_action_code(action->name);
+        if(action->code==BRZ_ACTION_INVALID){
+            fprintf(errors,"ValidationError:%d: unsupported declared action '%s'\n",action->line,action->name); ok=0;
+        }
+    }
+    for(size_t i=0;i<cfg->resources.len;i++){
+        ResourceDef* resource=(ResourceDef*)brz_vec_at(&cfg->resources,i);
+        resource->kind_id=kind_table_find(&cfg->resource_kinds,resource->name);
+        resource->terrain_query=brz_terrain_query(resource->habitat);
+    }
+    for(size_t i=0;i<cfg->recipes.len;i++){
+        RecipeDef* recipe=(RecipeDef*)brz_vec_at(&cfg->recipes,i);
+        recipe->output_resource_id=kind_table_find(&cfg->resource_kinds,recipe->output);
+        recipe->output_item_id=kind_table_find(&cfg->item_kinds,recipe->output);
+        for(size_t j=0;j<recipe->inputs.len;j++){
+            RecipeInputDef* input=(RecipeInputDef*)brz_vec_at(&recipe->inputs,j);
+            input->resource_id=kind_table_find(&cfg->resource_kinds,input->kind);
+            input->item_id=kind_table_find(&cfg->item_kinds,input->kind);
+        }
+    }
+    for(size_t i=0;i<cfg->vocations.len;i++){
+        VocationDef* vocation=(VocationDef*)brz_vec_at(&cfg->vocations,i);
+        for(size_t j=0;j<vocation->tasks.len;j++)
+            if(!compile_stmts(cfg,&((TaskDef*)brz_vec_at(&vocation->tasks,j))->stmts,vocation->name,errors)) ok=0;
+    }
+    return ok;
 }

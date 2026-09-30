@@ -174,9 +174,27 @@ static void test_parse_data_defined_economy(void)
     TEST_ASSERT(grain && pot);
     TEST_STREQ(grain->habitat,"field");
     TEST_EQ_INT((int)grain->capacity,120);
+    TEST_EQ_INT(grain->kind_id,0);
+    TEST_ASSERT(grain->terrain_query!=0);
     TEST_EQ_SIZE(pot->inputs.len,1);
     TEST_STREQ(((const RecipeInputDef*)brz_vec_cat(&pot->inputs,0))->kind,"clay");
     TEST_EQ_INT((int)cfg.settlement_policy.deposit_threshold,3);
+    brz_cfg_free(&cfg);
+}
+
+static void test_compile_rejects_invalid_runtime_operands(void)
+{
+    const char* bad_habitat=
+        "kinds { resources { grain } items { } }\n"
+        "resources { resource grain { habitat marsh capacity 1 renew 0 nutrition 0 market_target 1 } }\n";
+    const char* bad_action=
+        "kinds { resources { grain } items { } }\n"
+        "actions { action gather 1 1 }\n"
+        "vocations { vocation farmer { task work { gather clay } rule r { when true do work } } }\n";
+    ParsedConfig cfg; brz_cfg_init(&cfg);
+    TEST_ASSERT(!parse_from_string(bad_habitat,&cfg));
+    brz_cfg_free(&cfg); brz_cfg_init(&cfg);
+    TEST_ASSERT(!parse_from_string(bad_action,&cfg));
     brz_cfg_free(&cfg);
 }
 
@@ -247,6 +265,7 @@ void test_parser_run(void)
     test_parse_world_agents_settlements_defaults();
     test_parse_task_stmt_variants();
     test_parse_data_defined_economy();
+    test_compile_rejects_invalid_runtime_operands();
     test_parse_mosul_scenario_profile();
     test_parse_errors_return_false();
 }

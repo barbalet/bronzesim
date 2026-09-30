@@ -20,7 +20,26 @@ typedef struct {
     double n0;      /* first numeric arg */
     bool has_n0;
     int line;
+    /* Filled once by brz_cfg_compile(); execution never needs to resolve text. */
+    int action_code;
+    int arg0_resource_id;
+    int arg1_resource_id;
+    int arg0_item_id;
+    int arg1_item_id;
+    uint16_t terrain_query;
+    int recipe_index;
 } OpDef;
+
+typedef enum {
+    BRZ_ACTION_INVALID = -1,
+    BRZ_ACTION_GATHER,
+    BRZ_ACTION_CRAFT,
+    BRZ_ACTION_TRADE,
+    BRZ_ACTION_REST,
+    BRZ_ACTION_MOVE_TO,
+    BRZ_ACTION_ROAM,
+    BRZ_ACTION_WANDER
+} BrzActionCode;
 
 typedef enum {
     ST_OP = 0,
@@ -76,6 +95,8 @@ typedef struct {
     double nutrition;
     double market_target;
     int line;
+    int kind_id;
+    uint16_t terrain_query;
 } ResourceDef;
 
 typedef struct {
@@ -84,11 +105,15 @@ typedef struct {
     double output_amount;
     BrzVec inputs;       /* RecipeInputDef */
     int line;
+    int output_resource_id;
+    int output_item_id;
 } RecipeDef;
 
 typedef struct {
     char* kind;
     double amount;
+    int resource_id;
+    int item_id;
 } RecipeInputDef;
 
 typedef struct {
@@ -96,6 +121,7 @@ typedef struct {
     int min_args;
     int max_args;
     int line;
+    int code;
 } ActionDef;
 
 typedef struct { char* id; int line; } MapRefDef;
@@ -155,5 +181,8 @@ const ResourceDef* brz_resource_find(const ParsedConfig* cfg, const char* name);
 const RecipeDef* brz_recipe_find(const ParsedConfig* cfg, const char* name);
 const ActionDef* brz_action_find(const ParsedConfig* cfg, const char* name);
 bool brz_cfg_validate(const ParsedConfig* cfg, FILE* errors);
+bool brz_cfg_compile(ParsedConfig* cfg, FILE* errors);
+int brz_action_code(const char* name);
+uint16_t brz_terrain_query(const char* name);
 
 #endif /* BRZ_DSL_H */

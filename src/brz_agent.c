@@ -133,34 +133,24 @@ static int eval_when_expr(const char* expr, const BronzeActorPort* actor, const 
     return v ? 1 : 0;
 }
 
-/* ---- Inventory helpers ---- */
-
-static int res_id(const ParsedConfig* cfg, const char* name){
-    return kind_table_find(&cfg->resource_kinds, name);
-}
-static int item_id(const ParsedConfig* cfg, const char* name){
-    return kind_table_find(&cfg->item_kinds, name);
-}
-
 /* ---- Recipes (compiled from scenario content) ---- */
-static int craft_with_recipes(BronzeActorPort* actor, const ParsedConfig* cfg, const char* item_name, double n){
-    const RecipeDef* recipe=brz_recipe_find(cfg,item_name);
+static int craft_with_recipe(BronzeActorPort* actor, const RecipeDef* recipe, double n){
     if(!recipe || recipe->output_amount<=0) return 0;
     double batches=n;
     for(size_t i=0;i<recipe->inputs.len;i++){
         const RecipeInputDef* in=(const RecipeInputDef*)brz_vec_cat(&recipe->inputs,i);
-        int rid=res_id(cfg,in->kind), iid=item_id(cfg,in->kind);
+        int rid=in->resource_id, iid=in->item_id;
         double available=(rid>=0)?actor->resource_get(actor->context,rid):(iid>=0?actor->item_get(actor->context,iid):0.0);
         if(in->amount>0 && available/in->amount<batches) batches=available/in->amount;
     }
     if(batches<=0) return 1; /* valid recipe but insufficient inputs */
     for(size_t i=0;i<recipe->inputs.len;i++){
         const RecipeInputDef* in=(const RecipeInputDef*)brz_vec_cat(&recipe->inputs,i);
-        int rid=res_id(cfg,in->kind), iid=item_id(cfg,in->kind);
+        int rid=in->resource_id, iid=in->item_id;
         if(rid>=0) actor->resource_add(actor->context,rid,-batches*in->amount);
         else if(iid>=0) actor->item_add(actor->context,iid,-batches*in->amount);
     }
-    int out_r=res_id(cfg,recipe->output), out_i=item_id(cfg,recipe->output);
+    int out_r=recipe->output_resource_id, out_i=recipe->output_item_id;
     if(out_r>=0) actor->resource_add(actor->context,out_r,batches*recipe->output_amount);
     else if(out_i>=0) actor->item_add(actor->context,out_i,batches*recipe->output_amount);
     else return 0;
@@ -169,39 +159,31 @@ static int craft_with_recipes(BronzeActorPort* actor, const ParsedConfig* cfg, c
 
 /* ---- Action execution against world/settlements ---- */
 
-static uint16_t tag_for_habitat(const char* arg0){
-    if(!arg0) return BRZ_TAG_FOREST;
-    if(brz_streq(arg0,"coast")) return BRZ_TAG_COAST;
-    if(brz_streq(arg0,"field")) return BRZ_TAG_FIELD;
-    if(brz_streq(arg0,"forest")) return BRZ_TAG_FOREST;
-    if(brz_streq(arg0,"claypit")) return BRZ_TAG_CLAYPIT;
-    if(brz_streq(arg0,"mine_copper")) return BRZ_TAG_MINE_CU;
-    if(brz_streq(arg0,"mine_tin")) return BRZ_TAG_MINE_SN;
-    return BRZ_TAG_FOREST;
-}
-
-
 static int actor_at_settlement(const BronzeActorPort* actor, BrzPos settlement_position){
     return brz_dist_manhattan(actor->position(actor->context), settlement_position) <= 1;
 }
 
-static void exec_op(BronzeActorPort* actor, const ParsedConfig* cfg, BronzeWorldPort* world,
-                    BronzeSettlementPort* settlements, const OpDef* op, BrzRng* rng,
-                    const BronzeEventSink* events, int day)
+typedef void (*CompiledActionHandler)(BronzeActorPort*, const ParsedConfig*, BronzeWorldPort*,
+                                      BronzeSettlementPort*, const OpDef*, BrzRng*,
+                                      const BronzeEventSink*, int);
+
+typedef struct { int code; CompiledActionHandler execute; } CompiledActionRegistration;
+
+static void execute_compiled_action(BronzeActorPort* actor, const ParsedConfig* cfg, BronzeWorldPort* world,
+                                    BronzeSettlementPort* settlements, const OpDef* op, BrzRng* rng,
+                                    const BronzeEventSink* events, int day)
 {
     (void)rng;
-    const char* opname = op->op ? op->op : "";
     const char* arg0 = op->a0 ? op->a0 : "";
-    const char* arg1 = op->a1 ? op->a1 : "";
     double n = (op->has_n0 ? op->n0 : 1.0);
 
-    if(brz_streq(opname, "gather"))
+    if(op->action_code==BRZ_ACTION_GATHER)
     {
-        int rid = res_id(cfg, arg0);
+        int rid = op->arg0_resource_id;
         double gathered=0;
         if(rid >= 0){
             const ResourceDef* resource=brz_resource_find(cfg,arg0);
-            uint16_t need = tag_for_habitat(resource ? resource->habitat : NULL);
+            uint16_t need = resource ? resource->terrain_query : 0;
             if(need){
                 if(!(world->tags_at(world->context, actor->position(actor->context)) & need)){
                     /* set target toward nearest suitable tile */
@@ -221,27 +203,29 @@ static void exec_op(BronzeActorPort* actor, const ParsedConfig* cfg, BronzeWorld
         actor->need_add(actor->context,"hunger",0.02);
         if(gathered>0) bronze_event_emit(events,BRZ_EVENT_GATHERED,actor->id(actor->context),actor->home_settlement(actor->context),arg0,gathered,BRZ_RESULT_COMPLETED,day);
     }
-    else if(brz_streq(opname, "craft"))
+    else if(op->action_code==BRZ_ACTION_CRAFT)
     {
         /* crafting mostly at settlement, but allow anywhere */
-        if(!craft_with_recipes(actor, cfg, arg0, n)){
-            int iid = item_id(cfg, arg0);
+        const RecipeDef* recipe=(op->recipe_index>=0 && (size_t)op->recipe_index<cfg->recipes.len)
+                                ? (const RecipeDef*)brz_vec_cat(&cfg->recipes,(size_t)op->recipe_index) : NULL;
+        if(!craft_with_recipe(actor, recipe, n)){
+            int iid = op->arg0_item_id;
             if(iid >= 0) actor->item_add(actor->context,iid,n);
         }
         actor->need_add(actor->context,"fatigue",0.05 + 0.01*n);
         actor->need_add(actor->context,"hunger",0.02);
         bronze_event_emit(events,BRZ_EVENT_CRAFTED,actor->id(actor->context),actor->home_settlement(actor->context),arg0,n,BRZ_RESULT_COMPLETED,day);
     }
-    else if(brz_streq(opname, "trade"))
+    else if(op->action_code==BRZ_ACTION_TRADE)
     {
         /* trade give(arg0) for want(arg1) through settlement market */
         int si = settlements->nearest(settlements->context, actor->position(actor->context));
         double completed=0;
         if(si >= 0 && actor_at_settlement(actor, settlements->position(settlements->context,si))){
-            int give_r = res_id(cfg,arg0);
-            int want_r = res_id(cfg,arg1);
-            int give_i = item_id(cfg,arg0);
-            int want_i = item_id(cfg,arg1);
+            int give_r = op->arg0_resource_id;
+            int want_r = op->arg1_resource_id;
+            int give_i = op->arg0_item_id;
+            int want_i = op->arg1_item_id;
 
             double give_amt = 1.0;
             if(give_r>=0 && actor->resource_get(actor->context,give_r) >= give_amt){
@@ -302,15 +286,15 @@ static void exec_op(BronzeActorPort* actor, const ParsedConfig* cfg, BronzeWorld
         bronze_event_emit(events,BRZ_EVENT_TRADED,actor->id(actor->context),si,arg0,completed,
                           completed>0 ? BRZ_RESULT_COMPLETED : BRZ_RESULT_UNAVAILABLE,day);
     }
-    else if(brz_streq(opname, "rest"))
+    else if(op->action_code==BRZ_ACTION_REST)
     {
         actor->need_add(actor->context,"fatigue",-0.1);
         actor->need_add(actor->context,"hunger",0.01);
         bronze_event_emit(events,BRZ_EVENT_RESTED,actor->id(actor->context),actor->home_settlement(actor->context),"rest",1.0,BRZ_RESULT_COMPLETED,day);
     }
-    else if(brz_streq(opname, "move_to") || brz_streq(opname, "roam") || brz_streq(opname,"wander"))
+    else if(op->action_code==BRZ_ACTION_MOVE_TO || op->action_code==BRZ_ACTION_ROAM || op->action_code==BRZ_ACTION_WANDER)
     {
-        uint16_t t = tag_for_habitat(arg0);
+        uint16_t t = op->terrain_query;
         BrzPos position=actor->position(actor->context);
         BrzPos target=actor->target(actor->context);
         if(!actor->has_target(actor->context) || brz_dist_manhattan(position,target) == 0){
@@ -322,6 +306,28 @@ static void exec_op(BronzeActorPort* actor, const ParsedConfig* cfg, BronzeWorld
         if(brz_dist_manhattan(position,target)==0) actor->clear_target(actor->context);
         actor->need_add(actor->context,"fatigue",0.04);
         actor->need_add(actor->context,"hunger",0.01);
+    }
+}
+
+/* Scenario content resolves names to BrzActionCode during parsing.  This table
+   is the only execution dispatch point; adapters can register a different
+   implementation for a supported code without reintroducing string branches. */
+static const CompiledActionRegistration compiled_actions[] = {
+    {BRZ_ACTION_GATHER, execute_compiled_action}, {BRZ_ACTION_CRAFT, execute_compiled_action},
+    {BRZ_ACTION_TRADE, execute_compiled_action}, {BRZ_ACTION_REST, execute_compiled_action},
+    {BRZ_ACTION_MOVE_TO, execute_compiled_action}, {BRZ_ACTION_ROAM, execute_compiled_action},
+    {BRZ_ACTION_WANDER, execute_compiled_action}
+};
+
+static void exec_op(BronzeActorPort* actor, const ParsedConfig* cfg, BronzeWorldPort* world,
+                    BronzeSettlementPort* settlements, const OpDef* op, BrzRng* rng,
+                    const BronzeEventSink* events, int day)
+{
+    for(size_t i=0;i<sizeof(compiled_actions)/sizeof(compiled_actions[0]);i++){
+        if(compiled_actions[i].code==op->action_code){
+            compiled_actions[i].execute(actor,cfg,world,settlements,op,rng,events,day);
+            return;
+        }
     }
 }
 
@@ -370,10 +376,15 @@ static void agent_auto_eat(BronzeActorPort* actor, const ParsedConfig* cfg, Bron
     if(actor->need(actor->context,"hunger") > 0.7)
     {
         double eat = 0.0; int selected=-1;
+        int preferred=kind_table_find(&cfg->resource_kinds,cfg->settlement_policy.food_fallback);
+        if(preferred>=0){
+            const ResourceDef* def=brz_resource_find(cfg,kind_table_name(&cfg->resource_kinds,preferred));
+            if(def && def->nutrition>0 && actor->resource_get(actor->context,preferred)>0){ selected=preferred; eat=def->nutrition; }
+        }
         for(size_t rid=0;rid<kind_table_count(&cfg->resource_kinds);rid++){
             const char* name=kind_table_name(&cfg->resource_kinds,(int)rid);
             const ResourceDef* def=brz_resource_find(cfg,name);
-            if(def && def->nutrition>0 && actor->resource_get(actor->context,(int)rid)>0){ selected=(int)rid; eat=def->nutrition; break; }
+            if(selected<0 && def && def->nutrition>0 && actor->resource_get(actor->context,(int)rid)>0){ selected=(int)rid; eat=def->nutrition; break; }
         }
         if(selected>=0) actor->resource_add(actor->context,selected,-1);
         if(eat<=0.0 && si>=0 && actor_at_settlement(actor,settlements->position(settlements->context,si))){
@@ -503,7 +514,7 @@ void brz_agent_step(BrzAgent* a, BronzeActorPort* actor, const ParsedConfig* cfg
             exec_stmts_vec(actor, cfg, world, settlements, &t->stmts, rng, events, day);
         }else if(brz_action_find(cfg,r->do_task)){
             OpDef action; memset(&action,0,sizeof(action));
-            action.op=r->do_task; action.line=r->line;
+            action.op=r->do_task; action.line=r->line; action.action_code=brz_action_code(r->do_task);
             exec_op(actor,cfg,world,settlements,&action,rng,events,day);
         }
     }
