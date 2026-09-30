@@ -194,12 +194,12 @@ static uint16_t tag_for_habitat(const char* arg0){
 }
 
 
-static int agent_at_settlement(const BrzAgent* a, const BrzSettlement* s){
-    return brz_dist_manhattan(a->pos, s->pos) <= 1;
+static int agent_at_settlement(const BrzAgent* a, BrzPos settlement_position){
+    return brz_dist_manhattan(a->pos, settlement_position) <= 1;
 }
 
-static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
-                    BrzSettlement* setts, int sett_n, const OpDef* op, BrzRng* rng,
+static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BronzeWorldPort* world,
+                    BronzeSettlementPort* settlements, const OpDef* op, BrzRng* rng,
                     const BronzeEventSink* events, int day)
 {
     (void)rng;
@@ -216,16 +216,16 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
             const ResourceDef* resource=brz_resource_find(cfg,arg0);
             uint16_t need = tag_for_habitat(resource ? resource->habitat : NULL);
             if(need){
-                if(!(brz_world_tags_at(world, a->pos) & need)){
+                if(!(world->tags_at(world->context, a->pos) & need)){
                     /* set target toward nearest suitable tile */
-                    a->target = brz_world_find_nearest_tag(world, a->pos, need, 32);
+                    a->target = world->nearest_tag(world->context, a->pos, need, 32);
                     a->has_target = 1;
                 }else{
-                    gathered = brz_world_take(world, a->pos, a->res_n, rid, n);
+                    gathered = world->take(world->context, a->pos, rid, n);
                     agent_add_res(a, rid, gathered);
                 }
             }else{
-                gathered = brz_world_take(world, a->pos, a->res_n, rid, n);
+                gathered = world->take(world->context, a->pos, rid, n);
                 agent_add_res(a, rid, gathered);
             }
         }
@@ -247,9 +247,8 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
     else if(brz_streq(opname, "trade"))
     {
         /* trade give(arg0) for want(arg1) through settlement market */
-        int si = brz_find_nearest_settlement(setts, sett_n, a->pos);
-        if(si >= 0 && agent_at_settlement(a, &setts[si])){
-            BrzSettlement* s = &setts[si];
+        int si = settlements->nearest(settlements->context, a->pos);
+        if(si >= 0 && agent_at_settlement(a, settlements->position(settlements->context,si))){
             int give_r = res_id(cfg,arg0);
             int want_r = res_id(cfg,arg1);
             int give_i = item_id(cfg,arg0);
@@ -257,49 +256,49 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
 
             double give_amt = 1.0;
             if(give_r>=0 && a->res_inv[give_r] >= give_amt){
-                double pg = brz_settlement_price_res(s, cfg, give_r);
-                double pw = (want_r>=0) ? brz_settlement_price_res(s, cfg, want_r)
-                                        : (want_i>=0 ? brz_settlement_price_item(s, want_i) : 1.0);
+                double pg = settlements->resource_price(settlements->context,si,give_r);
+                double pw = (want_r>=0) ? settlements->resource_price(settlements->context,si,want_r)
+                                        : (want_i>=0 ? settlements->item_price(settlements->context,si,want_i) : 1.0);
                 double want_amt = (pw>0? (give_amt*pg/pw) : 0.0);
                 if(want_amt <= 0) want_amt = 0;
                 /* settlement accepts give */
                 a->res_inv[give_r] -= give_amt;
-                s->res_inv[give_r] += give_amt;
+                settlements->resource_add(settlements->context,si,give_r,give_amt);
                 /* settlement pays out want if stock */
                 if(want_r>=0){
                     double pay = want_amt;
-                    if(s->res_inv[want_r] < pay) pay = s->res_inv[want_r];
-                    s->res_inv[want_r] -= pay;
+                    if(settlements->resource_get(settlements->context,si,want_r) < pay) pay = settlements->resource_get(settlements->context,si,want_r);
+                    settlements->resource_add(settlements->context,si,want_r,-pay);
                     a->res_inv[want_r] += pay;
                 }else if(want_i>=0){
                     double pay = want_amt;
-                    if(s->item_inv[want_i] < pay) pay = s->item_inv[want_i];
-                    s->item_inv[want_i] -= pay;
+                    if(settlements->item_get(settlements->context,si,want_i) < pay) pay = settlements->item_get(settlements->context,si,want_i);
+                    settlements->item_add(settlements->context,si,want_i,-pay);
                     a->item_inv[want_i] += pay;
                 }
             }else if(give_i>=0 && a->item_inv[give_i] >= give_amt){
-                double pg = brz_settlement_price_item(s, give_i);
-                double pw = (want_r>=0) ? brz_settlement_price_res(s, cfg, want_r)
-                                        : (want_i>=0 ? brz_settlement_price_item(s, want_i) : 1.0);
+                double pg = settlements->item_price(settlements->context,si,give_i);
+                double pw = (want_r>=0) ? settlements->resource_price(settlements->context,si,want_r)
+                                        : (want_i>=0 ? settlements->item_price(settlements->context,si,want_i) : 1.0);
                 double want_amt = (pw>0? (give_amt*pg/pw) : 0.0);
                 a->item_inv[give_i] -= give_amt;
-                s->item_inv[give_i] += give_amt;
+                settlements->item_add(settlements->context,si,give_i,give_amt);
                 if(want_r>=0){
                     double pay = want_amt;
-                    if(s->res_inv[want_r] < pay) pay = s->res_inv[want_r];
-                    s->res_inv[want_r] -= pay;
+                    if(settlements->resource_get(settlements->context,si,want_r) < pay) pay = settlements->resource_get(settlements->context,si,want_r);
+                    settlements->resource_add(settlements->context,si,want_r,-pay);
                     a->res_inv[want_r] += pay;
                 }else if(want_i>=0){
                     double pay = want_amt;
-                    if(s->item_inv[want_i] < pay) pay = s->item_inv[want_i];
-                    s->item_inv[want_i] -= pay;
+                    if(settlements->item_get(settlements->context,si,want_i) < pay) pay = settlements->item_get(settlements->context,si,want_i);
+                    settlements->item_add(settlements->context,si,want_i,-pay);
                     a->item_inv[want_i] += pay;
                 }
             }
         }else{
             /* move toward nearest settlement */
             if(si >= 0){
-                a->target = setts[si].pos;
+                a->target = settlements->position(settlements->context,si);
                 a->has_target = 1;
             }
         }
@@ -318,7 +317,7 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
     {
         uint16_t t = tag_for_habitat(arg0);
         if(!a->has_target || brz_dist_manhattan(a->pos,a->target) == 0){
-            a->target = brz_world_find_nearest_tag(world, a->pos, t, 32);
+            a->target = world->nearest_tag(world->context, a->pos, t, 32);
             a->has_target = 1;
         }
         a->pos = brz_step_toward(a->pos, a->target);
@@ -331,23 +330,23 @@ static void exec_op(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
 
 /* statement execution */
 
-static void exec_stmt(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world, BrzSettlement* setts, int sett_n,
+static void exec_stmt(BrzAgent* a, const ParsedConfig* cfg, BronzeWorldPort* world, BronzeSettlementPort* settlements,
                       const StmtDef* st, BrzRng* rng, const BronzeEventSink* events, int day);
 
-static void exec_stmts_vec(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world, BrzSettlement* setts, int sett_n,
+static void exec_stmts_vec(BrzAgent* a, const ParsedConfig* cfg, BronzeWorldPort* world, BronzeSettlementPort* settlements,
                            const BrzVec* stmts, BrzRng* rng, const BronzeEventSink* events, int day)
 {
     for(size_t i=0;i<stmts->len;i++){
         const StmtDef* st = (const StmtDef*)brz_vec_cat(stmts, i);
-        exec_stmt(a, cfg, world, setts, sett_n, st, rng, events, day);
+        exec_stmt(a, cfg, world, settlements, st, rng, events, day);
     }
 }
 
-static void exec_stmt(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world, BrzSettlement* setts, int sett_n,
+static void exec_stmt(BrzAgent* a, const ParsedConfig* cfg, BronzeWorldPort* world, BronzeSettlementPort* settlements,
                       const StmtDef* st, BrzRng* rng, const BronzeEventSink* events, int day)
 {
     if(st->kind == ST_OP){
-        exec_op(a, cfg, world, setts, sett_n, &st->as.op, rng, events, day);
+        exec_op(a, cfg, world, settlements, &st->as.op, rng, events, day);
     }else if(st->kind == ST_CHANCE){
         /* percent 0..100 */
         double pct = st->as.chance.chance_pct;
@@ -356,19 +355,19 @@ static void exec_stmt(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world, Brz
         int roll = (int)(brz_rng_u32(rng)%10000u);
         int thr = (int)((pct/100.0)*10000.0);
         if(roll < thr){
-            exec_stmts_vec(a, cfg, world, setts, sett_n, &st->as.chance.body, rng, events, day);
+            exec_stmts_vec(a, cfg, world, settlements, &st->as.chance.body, rng, events, day);
         }
     }else if(st->kind == ST_WHEN){
         if(eval_when_expr(st->as.when_stmt.when_expr, a, cfg, rng)){
-            exec_stmts_vec(a, cfg, world, setts, sett_n, &st->as.when_stmt.body, rng, events, day);
+            exec_stmts_vec(a, cfg, world, settlements, &st->as.when_stmt.body, rng, events, day);
         }
     }
 }
 
 /* auto-eat from own resources and settlement */
-static void agent_auto_eat(BrzAgent* a, const ParsedConfig* cfg, BrzSettlement* setts, int sett_n)
+static void agent_auto_eat(BrzAgent* a, const ParsedConfig* cfg, BronzeSettlementPort* settlements)
 {
-    int si = (sett_n>0) ? a->home_settlement : -1;
+    int si = a->home_settlement;
 
     if(a->hunger > 0.7)
     {
@@ -379,11 +378,14 @@ static void agent_auto_eat(BrzAgent* a, const ParsedConfig* cfg, BrzSettlement* 
             if(def && def->nutrition>0 && a->res_inv[rid]>0){ selected=(int)rid; eat=def->nutrition; break; }
         }
         if(selected>=0) a->res_inv[selected]-=1;
-        if(eat<=0.0 && si>=0 && agent_at_settlement(a,&setts[si])){
+        if(eat<=0.0 && si>=0 && agent_at_settlement(a,settlements->position(settlements->context,si))){
             for(size_t rid=0;rid<a->res_n;rid++){
                 const char* name=kind_table_name(&cfg->resource_kinds,(int)rid);
                 const ResourceDef* def=brz_resource_find(cfg,name);
-                if(def && def->nutrition>0 && setts[si].res_inv[rid]>0){ setts[si].res_inv[rid]-=1; eat=def->nutrition; break; }
+                if(def && def->nutrition>0 && settlements->resource_get(settlements->context,si,(int)rid)>0){
+                    settlements->resource_add(settlements->context,si,(int)rid,-1);
+                    eat=def->nutrition; break;
+                }
             }
         }
         a->hunger -= eat;
@@ -392,13 +394,12 @@ static void agent_auto_eat(BrzAgent* a, const ParsedConfig* cfg, BrzSettlement* 
 }
 
 /* auto-rest: when at home settlement, reduce fatigue (keeps agents active long-term) */
-static void agent_auto_rest(BrzAgent* a, const ParsedConfig* cfg, BrzSettlement* setts, int sett_n)
+static void agent_auto_rest(BrzAgent* a, const ParsedConfig* cfg, BronzeSettlementPort* settlements)
 {
-    if(sett_n<=0) return;
     int si = a->home_settlement;
-    if(si<0 || si>=sett_n) return;
+    if(si<0) return;
 
-    if(agent_at_settlement(a, &setts[si])){
+    if(agent_at_settlement(a, settlements->position(settlements->context,si))){
         /* a little recovery every day at home */
         double recovery=cfg->settlement_policy.rest_recovery;
         if(recovery<=0) recovery=0.04;
@@ -487,8 +488,8 @@ void brz_agents_free(BrzAgent* agents, int agent_n){
     free(agents);
 }
 
-void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
-                    BrzSettlement* setts, int sett_n, BrzRng* rng,
+void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BronzeWorldPort* world,
+                    BronzeSettlementPort* settlements, BrzRng* rng,
                     const BronzeEventSink* events, int day)
 {
     /* baseline drift (daily metabolism + rest)
@@ -503,11 +504,11 @@ void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
                           r->do_task,1.0,day);
         TaskDef* t = brz_voc_find_task((VocationDef*)a->voc, r->do_task);
         if(t){
-            exec_stmts_vec(a, cfg, world, setts, sett_n, &t->stmts, rng, events, day);
+            exec_stmts_vec(a, cfg, world, settlements, &t->stmts, rng, events, day);
         }else if(brz_action_find(cfg,r->do_task)){
             OpDef action; memset(&action,0,sizeof(action));
             action.op=r->do_task; action.line=r->line;
-            exec_op(a,cfg,world,setts,sett_n,&action,rng,events,day);
+            exec_op(a,cfg,world,settlements,&action,rng,events,day);
         }
     }
 
@@ -518,23 +519,23 @@ void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
     }
 
     /* clamp positions */
-    a->pos.x = brz_clamp_i(a->pos.x, 0, world->w-1);
-    a->pos.y = brz_clamp_i(a->pos.y, 0, world->h-1);
+    a->pos = world->clamp_position(world->context,a->pos);
 
-    agent_auto_rest(a, cfg, setts, sett_n);
-    agent_auto_eat(a, cfg, setts, sett_n);
+    agent_auto_rest(a, cfg, settlements);
+    agent_auto_eat(a, cfg, settlements);
 
     /* Deposit policy is scenario data: food resources above its threshold are
        communal stock, rather than a special case for named resources. */
-    int si = (sett_n>0) ? a->home_settlement : -1;
-    if(si>=0 && agent_at_settlement(a,&setts[si])){
+    int si = a->home_settlement;
+    if(si>=0 && agent_at_settlement(a,settlements->position(settlements->context,si))){
         double threshold=cfg->settlement_policy.deposit_threshold;
         if(threshold<=0) threshold=2;
         for(size_t rid=0;rid<a->res_n;rid++){
             const ResourceDef* def=brz_resource_find(cfg,kind_table_name(&cfg->resource_kinds,(int)rid));
             if(def && def->nutrition>0 && a->res_inv[rid]>threshold){
                 double move=floor(a->res_inv[rid]-threshold);
-                a->res_inv[rid]-=move; setts[si].res_inv[rid]+=move;
+                a->res_inv[rid]-=move;
+                settlements->resource_add(settlements->context,si,(int)rid,move);
                 if(move>0) bronze_event_emit(events,BRZ_EVENT_DEPOSITED,a->id,si,
                                               kind_table_name(&cfg->resource_kinds,(int)rid),move,day);
             }

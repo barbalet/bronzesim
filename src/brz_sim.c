@@ -274,11 +274,20 @@ int brz_run_with_events(const ParsedConfig* cfg, const BronzeEventSink* events)
     }
     brz_settlements_place(setts, sett_n, map_w, map_h, cfg->seed ? cfg->seed : 0xC0FFEEu);
     brz_world_stamp_fields_around_settlements(&world, setts, sett_n, 8);
+    BronzeSettlementPort settlement_port;
+    bronze_settlement_port_init(&settlement_port,setts,sett_n,cfg);
+    if(!settlement_port.context){
+        brz_settlements_free(setts,sett_n);
+        bronze_world_port_destroy(&world_port);
+        brz_world_free(&world);
+        return 1;
+    }
 
     BrzAgent* agents = NULL;
     if(brz_agents_alloc_and_spawn(&agents, agent_n, cfg, setts, sett_n, res_n, item_n,
                                   cfg->seed ? cfg->seed : 0xC0FFEEu) != 0){
         fprintf(stderr, "Agent alloc failed\n");
+        bronze_settlement_port_destroy(&settlement_port);
         brz_settlements_free(setts, sett_n);
         bronze_world_port_destroy(&world_port);
         brz_world_free(&world);
@@ -301,7 +310,7 @@ int brz_run_with_events(const ParsedConfig* cfg, const BronzeEventSink* events)
         brz_settlements_begin_day(setts, sett_n);
 
         for(int i=0;i<agent_n;i++)
-            brz_agent_step(&agents[i], cfg, &world, setts, sett_n, &rng, events, day);
+            brz_agent_step(&agents[i], cfg, &world_port, &settlement_port, &rng, events, day);
 
         if(day==1 || (report_every>0 && day%report_every==0) || day==days)
             print_day_summary(day, cfg, setts, sett_n, agents, agent_n);
@@ -320,6 +329,7 @@ int brz_run_with_events(const ParsedConfig* cfg, const BronzeEventSink* events)
     }
 
     brz_agents_free(agents, agent_n);
+    bronze_settlement_port_destroy(&settlement_port);
     brz_settlements_free(setts, sett_n);
     bronze_world_port_destroy(&world_port);
     brz_world_free(&world);

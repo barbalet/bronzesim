@@ -81,9 +81,11 @@ typedef struct {
 
     BrzWorld world;
     int world_inited;
+    BronzeWorldPort world_port;
 
     BrzSettlement* setts;
     int sett_n;
+    BronzeSettlementPort settlement_port;
 
     BrzAgent* agents;
     int agent_n;
@@ -279,7 +281,9 @@ static void vocation_color(const VocationDef* voc, unsigned char* r, unsigned ch
 static void rt_shutdown(void)
 {
     if(rt.agents){ brz_agents_free(rt.agents, rt.agent_n); rt.agents = NULL; }
+    bronze_settlement_port_destroy(&rt.settlement_port);
     if(rt.setts){ brz_settlements_free(rt.setts, rt.sett_n); rt.setts = NULL; }
+    bronze_world_port_destroy(&rt.world_port);
     if(rt.world_inited){ brz_world_free(&rt.world); rt.world_inited = 0; }
     if(rt.cfg_loaded){ brz_cfg_free(&rt.cfg); rt.cfg_loaded = 0; }
 
@@ -326,6 +330,12 @@ int brz_shared_load_config(const char* path)
         return 3;
     }
     rt.world_inited = 1;
+    bronze_world_port_init(&rt.world_port,&rt.world,rt.res_n);
+    if(!rt.world_port.context){
+        fprintf(stderr, "brz_shared_load_config: world port init failed\n");
+        rt_shutdown();
+        return 4;
+    }
 
     if(brz_settlements_alloc(&rt.setts, rt.sett_n, rt.res_n, rt.item_n) != 0){
         fprintf(stderr, "brz_shared_load_config: settlement alloc failed\n");
@@ -335,6 +345,12 @@ int brz_shared_load_config(const char* path)
 
     brz_settlements_place(rt.setts, rt.sett_n, rt.map_w, rt.map_h, rt.cfg.seed ? rt.cfg.seed : 0xC0FFEEu);
     brz_world_stamp_fields_around_settlements(&rt.world, rt.setts, rt.sett_n, 8);
+    bronze_settlement_port_init(&rt.settlement_port,rt.setts,rt.sett_n,&rt.cfg);
+    if(!rt.settlement_port.context){
+        fprintf(stderr, "brz_shared_load_config: settlement port init failed\n");
+        rt_shutdown();
+        return 5;
+    }
 
     if(brz_agents_alloc_and_spawn(&rt.agents, rt.agent_n, &rt.cfg,
                                   rt.setts, rt.sett_n,
@@ -342,7 +358,7 @@ int brz_shared_load_config(const char* path)
                                   rt.cfg.seed ? rt.cfg.seed : 0xC0FFEEu) != 0){
         fprintf(stderr, "brz_shared_load_config: agent alloc failed\n");
         rt_shutdown();
-        return 5;
+        return 6;
     }
 
     /* population count */
@@ -461,10 +477,11 @@ void brz_shared_cycle(unsigned long ticks)
     unsigned long steps = 0;
     while(rt.accum_ms >= STEP_MS && steps < MAX_CATCHUP_STEPS){
         /* One sim "day" */
-        brz_world_step_regen(&rt.world, rt.res_n);
+        rt.world_port.step_regen(rt.world_port.context);
         brz_settlements_begin_day(rt.setts, rt.sett_n);
         for(int i=0;i<rt.agent_n;i++)
-            brz_agent_step(&rt.agents[i], &rt.cfg, &rt.world, rt.setts, rt.sett_n, &rt.rng);
+            brz_agent_step(&rt.agents[i], &rt.cfg, &rt.world_port, &rt.settlement_port,
+                           &rt.rng, NULL, (int)rt.day);
 
         rt.day++;
         rt.accum_ms -= STEP_MS;

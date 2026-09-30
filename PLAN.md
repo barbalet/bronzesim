@@ -340,7 +340,23 @@ state, regeneration cap, and repeatability.  The unavailable-trade trace
 deliberately records the current emitted `traded` event despite no inventory
 movement; Phase 1 must replace that ambiguous outcome with a result code.
 
-Next, implement Phase 1, then Phase 2's small Mosul DSL fixture before any
-broad ApeSDK integration.  This establishes whether refactoring preserves
-BronzeSim behaviour and whether the DSL can represent Mosul services and
-places without pulling rendering or ApeSDK internals into authored content.
+## Phase 1 status
+
+Started 2026-09-30.  The first internal-boundary slice changes
+`brz_agent_step()` and all task execution helpers to accept `BronzeWorldPort`
+and `BronzeSettlementPort`, rather than `BrzWorld *` and `BrzSettlement *`.
+The local adapters now provide position clamping, named-settlement lookup,
+resource/item store mutation, and scarcity pricing.  The CLI runner, the
+Phase 0 direct-step tests, and BronzeVis construct and own those ports.
+
+This deliberately preserves the existing action semantics—including the
+ambiguous trade event captured by Phase 0.  Actor inventory and need mutation
+remain direct `BrzAgent` access in this slice; moving them to
+`BronzeActorPort` and giving actions explicit result codes are the next Phase
+1 steps.  Verification remains pending the host Xcode command-line-tools
+license.
+
+Next, complete Phase 1, then implement Phase 2's small Mosul DSL fixture
+before any broad ApeSDK integration.  This establishes whether refactoring
+preserves BronzeSim behaviour and whether the DSL can represent Mosul services
+and places without pulling rendering or ApeSDK internals into authored content.

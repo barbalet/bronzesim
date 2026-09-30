@@ -118,17 +118,23 @@ static void test_recipe_consumes_inputs_and_emits_payload(void)
     char* path=NULL;
     BrzWorld world;
     BrzSettlement* settlements=NULL;
+    BronzeWorldPort world_port;
+    BronzeSettlementPort settlement_port;
     BrzAgent agent;
     BrzRng rng;
     EventTrace trace={0};
     BronzeEventSink sink={&trace,trace_event};
 
     memset(&world,0,sizeof(world));
+    memset(&world_port,0,sizeof(world_port)); memset(&settlement_port,0,sizeof(settlement_port));
     memset(&agent,0,sizeof(agent));
     TEST_ASSERT(parse_source(source,&config,&path));
     TEST_EQ_INT(brz_world_init(&world,&config,8,8,1),0);
     TEST_EQ_INT(brz_settlements_alloc(&settlements,1,1,1),0);
     settlements[0].pos=(BrzPos){3,3};
+    bronze_world_port_init(&world_port,&world,1);
+    bronze_settlement_port_init(&settlement_port,settlements,1,&config);
+    TEST_ASSERT(world_port.context!=NULL && settlement_port.context!=NULL);
     agent.id=41; agent.voc=(const VocationDef*)brz_vec_cat(&config.vocations,0);
     agent.pos=settlements[0].pos; agent.home_settlement=0;
     agent.res_n=1; agent.item_n=1;
@@ -137,7 +143,7 @@ static void test_recipe_consumes_inputs_and_emits_payload(void)
     TEST_ASSERT(agent.res_inv!=NULL && agent.item_inv!=NULL);
     agent.res_inv[0]=2.0;
     brz_rng_seed(&rng,3);
-    brz_agent_step(&agent,&config,&world,settlements,1,&rng,&sink,9);
+    brz_agent_step(&agent,&config,&world_port,&settlement_port,&rng,&sink,9);
     TEST_ASSERT(fabs(agent.res_inv[0]) < 0.000001);
     TEST_ASSERT(fabs(agent.item_inv[0]-1.0) < 0.000001);
     TEST_STREQ(trace.text,
@@ -145,6 +151,7 @@ static void test_recipe_consumes_inputs_and_emits_payload(void)
                "1|41|0|pot|1.000|9\n");
 
     free(agent.res_inv); free(agent.item_inv);
+    bronze_world_port_destroy(&world_port); bronze_settlement_port_destroy(&settlement_port);
     brz_settlements_free(settlements,1);
     brz_world_free(&world);
     free_source(&config,path);
@@ -162,23 +169,29 @@ static void test_unavailable_trade_preserves_inventory(void)
     char* path=NULL;
     BrzWorld world;
     BrzSettlement* settlements=NULL;
+    BronzeWorldPort world_port;
+    BronzeSettlementPort settlement_port;
     BrzAgent agent;
     BrzRng rng;
     EventTrace trace={0};
     BronzeEventSink sink={&trace,trace_event};
 
     memset(&world,0,sizeof(world));
+    memset(&world_port,0,sizeof(world_port)); memset(&settlement_port,0,sizeof(settlement_port));
     memset(&agent,0,sizeof(agent));
     TEST_ASSERT(parse_source(source,&config,&path));
     TEST_EQ_INT(brz_world_init(&world,&config,8,8,2),0);
     TEST_EQ_INT(brz_settlements_alloc(&settlements,1,2,1),0);
     settlements[0].pos=(BrzPos){3,3}; settlements[0].res_inv[1]=9.0;
+    bronze_world_port_init(&world_port,&world,2);
+    bronze_settlement_port_init(&settlement_port,settlements,1,&config);
+    TEST_ASSERT(world_port.context!=NULL && settlement_port.context!=NULL);
     agent.id=7; agent.voc=(const VocationDef*)brz_vec_cat(&config.vocations,0);
     agent.pos=settlements[0].pos; agent.home_settlement=0;
     agent.res_n=2; agent.res_inv=(double*)calloc(2,sizeof(double));
     TEST_ASSERT(agent.res_inv!=NULL);
     brz_rng_seed(&rng,5);
-    brz_agent_step(&agent,&config,&world,settlements,1,&rng,&sink,4);
+    brz_agent_step(&agent,&config,&world_port,&settlement_port,&rng,&sink,4);
     TEST_ASSERT(fabs(agent.res_inv[0]) < 0.000001);
     TEST_ASSERT(fabs(agent.res_inv[1]) < 0.000001);
     TEST_ASSERT(fabs(settlements[0].res_inv[0]) < 0.000001);
@@ -188,6 +201,7 @@ static void test_unavailable_trade_preserves_inventory(void)
                "2|7|0|wood|1.000|4\n");
 
     free(agent.res_inv);
+    bronze_world_port_destroy(&world_port); bronze_settlement_port_destroy(&settlement_port);
     brz_settlements_free(settlements,1);
     brz_world_free(&world);
     free_source(&config,path);

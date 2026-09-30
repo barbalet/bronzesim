@@ -6,7 +6,7 @@
 #include <string.h>
 
 typedef struct { BrzWorld* world; size_t resource_count; } LocalWorld;
-typedef struct { const BrzSettlement* settlements; int count; } LocalSettlements;
+typedef struct { BrzSettlement* settlements; int count; const ParsedConfig* config; } LocalSettlements;
 
 static uint16_t local_tags_at(void* context, BrzPos position)
 { return brz_world_tags_at(((LocalWorld*)context)->world,position); }
@@ -14,6 +14,13 @@ static double local_take(void* context, BrzPos position, int resource, double am
 { LocalWorld* world=(LocalWorld*)context; return brz_world_take(world->world,position,world->resource_count,resource,amount); }
 static BrzPos local_nearest(void* context, BrzPos from, uint16_t tag, int radius)
 { return brz_world_find_nearest_tag(((LocalWorld*)context)->world,from,tag,radius); }
+static BrzPos local_clamp_position(void* context, BrzPos position)
+{
+    BrzWorld* world=((LocalWorld*)context)->world;
+    position.x=brz_clamp_i(position.x,0,world->w-1);
+    position.y=brz_clamp_i(position.y,0,world->h-1);
+    return position;
+}
 static void local_regen(void* context)
 { LocalWorld* world=(LocalWorld*)context; brz_world_step_regen(world->world,world->resource_count); }
 
@@ -25,7 +32,8 @@ void bronze_world_port_init(BronzeWorldPort* port, void* world, size_t resource_
     if(!local){ memset(port,0,sizeof(*port)); return; }
     local->world=(BrzWorld*)world; local->resource_count=resource_count;
     port->context=local; port->tags_at=local_tags_at; port->take=local_take;
-    port->nearest_tag=local_nearest; port->step_regen=local_regen;
+    port->nearest_tag=local_nearest; port->clamp_position=local_clamp_position;
+    port->step_regen=local_regen;
 }
 
 void bronze_world_port_destroy(BronzeWorldPort* port)
@@ -49,14 +57,62 @@ void bronze_actor_port_init(BronzeActorPort* port, void* agent)
 
 static int local_settlement_nearest(void* context, BrzPos position)
 { LocalSettlements* settlements=(LocalSettlements*)context; return brz_find_nearest_settlement(settlements->settlements,settlements->count,position); }
-void bronze_settlement_port_init(BronzeSettlementPort* port, const void* settlements, int count)
+static BrzPos local_settlement_position(void* context, int id)
+{
+    LocalSettlements* settlements=(LocalSettlements*)context;
+    return (id>=0 && id<settlements->count) ? settlements->settlements[id].pos : (BrzPos){0,0};
+}
+static double local_resource_get(void* context, int id, int resource)
+{
+    LocalSettlements* settlements=(LocalSettlements*)context;
+    if(id<0 || id>=settlements->count || resource<0) return 0;
+    return settlements->settlements[id].res_inv[resource];
+}
+static void local_resource_add(void* context, int id, int resource, double amount)
+{
+    LocalSettlements* settlements=(LocalSettlements*)context;
+    if(id<0 || id>=settlements->count || resource<0) return;
+    settlements->settlements[id].res_inv[resource]+=amount;
+    if(settlements->settlements[id].res_inv[resource]<0) settlements->settlements[id].res_inv[resource]=0;
+}
+static double local_item_get(void* context, int id, int item)
+{
+    LocalSettlements* settlements=(LocalSettlements*)context;
+    if(id<0 || id>=settlements->count || item<0) return 0;
+    return settlements->settlements[id].item_inv[item];
+}
+static void local_item_add(void* context, int id, int item, double amount)
+{
+    LocalSettlements* settlements=(LocalSettlements*)context;
+    if(id<0 || id>=settlements->count || item<0) return;
+    settlements->settlements[id].item_inv[item]+=amount;
+    if(settlements->settlements[id].item_inv[item]<0) settlements->settlements[id].item_inv[item]=0;
+}
+static double local_resource_price(void* context, int id, int resource)
+{
+    LocalSettlements* settlements=(LocalSettlements*)context;
+    if(id<0 || id>=settlements->count) return 1.0;
+    return brz_settlement_price_res(&settlements->settlements[id],settlements->config,resource);
+}
+static double local_item_price(void* context, int id, int item)
+{
+    LocalSettlements* settlements=(LocalSettlements*)context;
+    if(id<0 || id>=settlements->count) return 1.0;
+    return brz_settlement_price_item(&settlements->settlements[id],item);
+}
+void bronze_settlement_port_init(BronzeSettlementPort* port, void* settlements, int count,
+                                 const ParsedConfig* config)
 {
     LocalSettlements* local;
     if(!port) return;
     local=(LocalSettlements*)malloc(sizeof(*local));
     if(!local){ memset(port,0,sizeof(*port)); return; }
-    local->settlements=(const BrzSettlement*)settlements; local->count=count;
+    local->settlements=(BrzSettlement*)settlements; local->count=count; local->config=config;
     port->context=local; port->nearest=local_settlement_nearest;
+    port->position=local_settlement_position;
+    port->resource_get=local_resource_get; port->resource_add=local_resource_add;
+    port->item_get=local_item_get; port->item_add=local_item_add;
+    port->resource_price=local_resource_price; port->item_price=local_item_price;
 }
 
 void bronze_settlement_port_destroy(BronzeSettlementPort* port)

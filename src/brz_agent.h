@@ -30,8 +30,8 @@ int  brz_agents_alloc_and_spawn(BrzAgent** out, int agent_n, const ParsedConfig*
                                 size_t res_n, size_t item_n, unsigned seed);
 void brz_agents_free(BrzAgent* agents, int agent_n);
 
-void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BrzWorld* world,
-                    BrzSettlement* setts, int sett_n, BrzRng* rng,
+void brz_agent_step(BrzAgent* a, const ParsedConfig* cfg, BronzeWorldPort* world,
+                    BronzeSettlementPort* settlements, BrzRng* rng,
                     const BronzeEventSink* events, int day);
 
 #endif

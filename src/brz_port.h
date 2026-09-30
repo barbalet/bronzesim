@@ -5,6 +5,7 @@
    BrzWorld or apeSDK's simulated_being so an apeSDK adapter can live outside
    its generic engine directories. */
 #include "brz_types.h"
+#include "brz_dsl.h"
 #include <stdint.h>
 #include <stddef.h>
 
@@ -31,7 +32,8 @@ typedef struct { void* context; BronzeEventFn emit; } BronzeEventSink;
 
 void bronze_world_port_init(BronzeWorldPort* port, void* world, size_t resource_count);
 void bronze_actor_port_init(BronzeActorPort* port, void* agent);
-void bronze_settlement_port_init(BronzeSettlementPort* port, const void* settlements, int count);
+void bronze_settlement_port_init(BronzeSettlementPort* port, void* settlements, int count,
+                                 const ParsedConfig* config);
 void bronze_world_port_destroy(BronzeWorldPort* port);
 void bronze_settlement_port_destroy(BronzeSettlementPort* port);
 
@@ -40,6 +42,7 @@ struct BronzeWorldPort {
     uint16_t (*tags_at)(void* context, BrzPos pos);
     double (*take)(void* context, BrzPos pos, int resource_id, double amount);
     BrzPos (*nearest_tag)(void* context, BrzPos from, uint16_t tag, int max_radius);
+    BrzPos (*clamp_position)(void* context, BrzPos position);
     void (*step_regen)(void* context);
 };
 
@@ -54,6 +57,13 @@ struct BronzeActorPort {
 struct BronzeSettlementPort {
     void* context;
     int (*nearest)(void* context, BrzPos position);
+    BrzPos (*position)(void* context, int settlement_id);
+    double (*resource_get)(void* context, int settlement_id, int resource_id);
+    void (*resource_add)(void* context, int settlement_id, int resource_id, double amount);
+    double (*item_get)(void* context, int settlement_id, int item_id);
+    void (*item_add)(void* context, int settlement_id, int item_id, double amount);
+    double (*resource_price)(void* context, int settlement_id, int resource_id);
+    double (*item_price)(void* context, int settlement_id, int item_id);
 };
 
 void bronze_event_emit(const BronzeEventSink* sink, BronzeEventKind kind,
