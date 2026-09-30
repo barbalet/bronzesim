@@ -381,6 +381,8 @@ Mosul test fixture for water provision.  Runtime execution of generic service
 policy in the full Mosul loop is intentionally deferred: Phase 2 establishes
 the compiler/adapter seam, not a second population runtime.
 
-Phase 2 implementation is complete when the BronzeSim and Mosul C99 suites
-pass after the Xcode license is accepted.  Do not begin Phase 3 until that
-verification and the two-repository commits are complete.
+Phase 2 was verified on 2026-09-30: BronzeSim's C99 suite passed 1,754 tests,
+and the Mosul `test-scenario-dsl` adapter fixture passed.  The Mosul portable
+Makefile also built the current host-bridge simulator successfully (with its
+pre-existing compiler warnings).  The two repositories now have a validated
+compiler/adapter seam; Phase 3 may begin.
