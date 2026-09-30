@@ -4,6 +4,7 @@
 #include "../brz_agent.h"
 #include "../brz_settlement.h"
 #include "../brz_world.h"
+#include "../brz_state.h"
 
 typedef struct {
     char text[2048];
@@ -258,6 +259,21 @@ static void test_bronze_event_projects_to_shared_runtime_contract(void)
     TEST_ASSERT(scenario_event_equivalent(&actual,&expected));
 }
 
+static void test_checkpoint_round_trip(void)
+{
+    const char* source="kinds { resources { grain } items { } } world { seed 9 sim_map_w 8 sim_map_h 8 } agents { count 1 } settlements { count 1 } actions { action rest 0 0 } vocations { vocation sleeper { task pause { rest } rule always { when true do pause } } }";
+    ParsedConfig cfg; char* path=NULL; BrzSimulationState first, second;
+    memset(&first,0,sizeof(first)); memset(&second,0,sizeof(second));
+    TEST_ASSERT(parse_source(source,&cfg,&path));
+    TEST_EQ_INT(brz_state_init(&first,&cfg),0); TEST_EQ_INT(brz_state_step(&first,NULL),0);
+    TEST_EQ_INT(brz_state_save(&first,"/tmp/brz_state_roundtrip.bin"),0);
+    TEST_EQ_INT(brz_state_load(&second,&cfg,"/tmp/brz_state_roundtrip.bin"),0);
+    TEST_EQ_INT(second.day,first.day); TEST_EQ_INT(second.rng.state,first.rng.state);
+    TEST_ASSERT(second.agents[0].hunger==first.agents[0].hunger);
+    TEST_ASSERT(second.world.res[0]==first.world.res[0]);
+    brz_state_destroy(&first); brz_state_destroy(&second); remove("/tmp/brz_state_roundtrip.bin"); free_source(&cfg,path);
+}
+
 static void test_bronze_adapter_runs_completed_and_deferred_service_vectors(void)
 {
     BrzAgent recipient;
@@ -298,5 +314,6 @@ void test_sim_run(void)
     test_unavailable_trade_preserves_inventory();
     test_regeneration_is_capped_and_deterministic();
     test_bronze_event_projects_to_shared_runtime_contract();
+    test_checkpoint_round_trip();
     test_bronze_adapter_runs_completed_and_deferred_service_vectors();
 }

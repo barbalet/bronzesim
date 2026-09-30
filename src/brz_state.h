@@ -18,5 +18,7 @@ typedef struct {
 int brz_state_init(BrzSimulationState* state, const ParsedConfig* config);
 int brz_state_step(BrzSimulationState* state, const BronzeEventSink* events);
 void brz_state_destroy(BrzSimulationState* state);
+int brz_state_save(const BrzSimulationState* state, const char* path);
+int brz_state_load(BrzSimulationState* state, const ParsedConfig* config, const char* path);
 
 #endif
