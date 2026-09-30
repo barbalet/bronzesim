@@ -1,6 +1,7 @@
 #include "brz_parser.h"
 #include "brz_sim.h"
 #include "brz_util.h"
+#include "brz_observe.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -27,7 +28,8 @@ static int find_param_int(const ParsedConfig* cfg, const char* key, int defv)
 
 int main(int argc, char** argv)
 {
-    const char* path = (argc >= 2) ? argv[1] : "example.bronze";
+    const char* path = "example.bronze"; BronzeEventObserver observer={0}; BronzeEventSink sink={0};
+    for(int i=1;i<argc;i++){ if(!strcmp(argv[i],"--events")){ observer.stream=stdout; } else if(!strcmp(argv[i],"--events-debug")){ observer.stream=stdout; observer.debug=1; } else path=argv[i]; }
     if(argc >= 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")))
     {
         usage(argv[0]);
@@ -63,7 +65,8 @@ int main(int argc, char** argv)
                v->rules.len);
     }
 
-    int rc = brz_run(&cfg);
+    if(observer.stream){ sink.context=&observer; sink.emit=bronze_event_observe; }
+    int rc = observer.stream ? brz_run_with_events(&cfg,&sink) : brz_run(&cfg);
     brz_cfg_free(&cfg);
     return rc;
 }

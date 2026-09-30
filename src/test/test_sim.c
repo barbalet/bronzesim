@@ -5,6 +5,7 @@
 #include "../brz_settlement.h"
 #include "../brz_world.h"
 #include "../brz_state.h"
+#include "../brz_observe.h"
 
 typedef struct {
     char text[2048];
@@ -274,6 +275,9 @@ static void test_checkpoint_round_trip(void)
     brz_state_destroy(&first); brz_state_destroy(&second); remove("/tmp/brz_state_roundtrip.bin"); free_source(&cfg,path);
 }
 
+static void test_event_observer_formats_immutable_event(void)
+{ BronzeEvent e={BRZ_EVENT_RESTED,7,2,"rest",1.0,BRZ_RESULT_COMPLETED,3}; BronzeEventObserver o; FILE* f=tmpfile(); char text[256]={0}; o.stream=f;o.debug=0; bronze_event_observe(&o,&e); rewind(f); fread(text,1,sizeof(text)-1,f); TEST_ASSERT(strstr(text,"actor 7 rest")!=NULL); fclose(f); f=tmpfile(); o.stream=f;o.debug=1; bronze_event_observe(&o,&e); rewind(f); memset(text,0,sizeof(text)); fread(text,1,sizeof(text)-1,f); TEST_ASSERT(strstr(text,"\"actor\":7")!=NULL); fclose(f); }
+
 static void test_checkpoint_resume_matches_uninterrupted_trace(void)
 {
     const char* source="kinds { resources { grain } items { } } world { seed 17 sim_map_w 8 sim_map_h 8 } agents { count 1 } settlements { count 1 } actions { action rest 0 0 } vocations { vocation sleeper { task pause { rest } rule always { when true do pause } } }";
@@ -329,6 +333,7 @@ void test_sim_run(void)
     test_regeneration_is_capped_and_deterministic();
     test_bronze_event_projects_to_shared_runtime_contract();
     test_checkpoint_round_trip();
+    test_event_observer_formats_immutable_event();
     test_checkpoint_resume_matches_uninterrupted_trace();
     test_bronze_adapter_runs_completed_and_deferred_service_vectors();
 }
